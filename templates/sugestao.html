@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block titulo %}Sugestão de compra{% endblock %}
+{% block conteudo %}
+
+<header class="cabecalho">
+  <h1>Sugestão de compra da semana</h1>
+  <p class="semana-alvo">
+    Semana: <strong>{{ semana.rotulo }}</strong>
+    <span class="etiqueta {{ tipo.cor }}">{{ tipo.nome }}</span>
+  </p>
+  {% if semana.obs %}<p class="obs">{{ semana.obs }}</p>{% endif %}
+  <p class="explicacao">Baseado na mediana de 6 semanas equivalentes dos últimos anos.</p>
+</header>
+
+<!-- Filtros: enviados pela URL (GET), sem JavaScript -->
+<form class="filtros nao-imprimir" method="get">
+  <label>Semana
+    <select name="semana">
+      {% for s in semanas %}
+        <option value="{{ s.id }}" {{ 'selected' if s.id == semana.id }}>{{ s.rotulo }} – {{ tipos[s.tipo].nome }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Departamento
+    <select name="departamento">
+      <option value="">Todos</option>
+      {% for d in departamentos %}
+        <option {{ 'selected' if d == departamento }}>{{ d }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Buscar produto
+    <input type="search" name="busca" value="{{ busca }}" placeholder="Ex.: detergente">
+  </label>
+  <button type="submit" class="botao">Aplicar</button>
+  <button type="button" class="botao principal" onclick="window.print()">Imprimir lista de compra</button>
+</form>
+
+<table class="tabela tabela-familias">
+  <thead>
+    <tr>
+      <th>Família de produto</th>
+      <th>Departamento</th>
+      <th class="num">Sugestão de compra</th>
+      <th class="num">Mediana histórica</th>
+      <th class="num">Mesma semana ano passado</th>
+      <th class="num">Quantidade final</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in familias %}
+    <tr>
+      <td>
+        {% if f.variacoes %}
+          <!-- <details> abre/fecha os sabores sem precisar de JavaScript -->
+          <details>
+            <summary>{{ f.nome }} <span class="qtd-sabores">{{ f.variacoes|length }} sabores</span>
+              {% if f.concentrado %}<span class="etiqueta laranja pequena">verificar registro</span>{% endif %}
+            </summary>
+            <table class="sabores">
+              <tr><th>Sabor / variação</th><th class="num">Venda registrada</th><th class="num">% da família</th></tr>
+              {% for v in f.variacoes %}
+              <tr><td>{{ v.nome }}</td><td class="num">{{ v.qtd|br }} un</td><td class="num">{{ v.pct|br(1) }}%</td></tr>
+              {% endfor %}
+            </table>
+            {% if f.concentrado %}
+              <p class="alerta-caixa">Quase toda a venda está em um único sabor. Provavelmente o caixa
+                registra vários sabores como se fossem um só. Por isso a compra é sugerida pela família.</p>
+            {% endif %}
+          </details>
+        {% else %}
+          {{ f.nome }}
+        {% endif %}
+      </td>
+      <td>{{ f.departamento }}</td>
+      <td class="num">
+        <strong>{{ f.sugestao|br }} un</strong>
+        <small>{{ f.fardos }} {{ f.embalagem }}{{ 's' if f.fardos != 1 }} de {{ f.fardo }}</small>
+      </td>
+      <td class="num">{{ f.mediana|br }} un</td>
+      <td class="num">{{ f.ano_passado|br }} un</td>
+      <td class="num">
+        <input class="qtd-final" type="number" min="0" step="{{ f.fardo }}" value="{{ f.sugestao }}"
+               aria-label="Quantidade final de {{ f.nome }}"> un
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="vazio">Nenhum produto encontrado com esses filtros.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="so-impressao assinatura">Comprador: ______________________________ &nbsp;&nbsp; Data: ____/____/______</p>
+{% endblock %}

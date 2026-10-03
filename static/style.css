@@ -1,0 +1,218 @@
+/* =========================================================================
+   Compras Inteligentes – Supermercado Borger
+   CSS puro. Cores de status ficam nas variáveis abaixo.
+   ========================================================================= */
+:root {
+  --texto: #1f2933;
+  --texto-suave: #52606d;
+  --fundo: #f3f4f6;
+  --branco: #ffffff;
+  --borda: #d9dde3;
+  --menu: #1f2a37;
+  --destaque: #1e5aa8;
+
+  /* cores de status (tipos de semana / dias) */
+  --vermelho: #c62828;
+  --laranja: #e65100;
+  --roxo: #6a1b9a;
+  --cinza: #616161;
+  --azul: #1565c0;
+  --verde: #2e7d32;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--texto);
+  background: var(--fundo);
+  display: flex;
+  min-height: 100vh;
+}
+
+h1 { font-size: 1.7rem; margin: 0 0 .4rem; }
+h2 { font-size: 1.3rem; margin: 2rem 0 .8rem; }
+
+/* ---------- Menu lateral ---------- */
+.menu {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--menu);
+  color: #fff;
+  padding: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+}
+.marca { padding: 0 1.5rem 1.5rem; border-bottom: 1px solid #374151; margin-bottom: 1rem; }
+.marca strong { display: block; font-size: 1.25rem; }
+.marca span { color: #cbd2d9; font-size: .95rem; }
+.menu a {
+  color: #e4e7eb;
+  text-decoration: none;
+  padding: .85rem 1.5rem;
+  border-left: 4px solid transparent;
+}
+.menu a:hover { background: #2b3a4d; }
+.menu a.ativo { background: #2b3a4d; border-left-color: #60a5fa; color: #fff; font-weight: 600; }
+.menu .sair { margin-top: auto; color: #cbd2d9; }
+.contador {
+  background: var(--laranja); color: #fff; border-radius: 999px;
+  padding: 0 .55rem; font-size: .85rem; font-weight: 700; margin-left: .3rem;
+}
+.fase2 { display: block; font-size: .8rem; color: #fbbf24; }
+
+/* ---------- Conteúdo ---------- */
+.conteudo { flex: 1; padding: 2rem 2.5rem; min-width: 0; }
+.aviso-prototipo {
+  margin: 0 0 1.2rem; font-size: .9rem; color: var(--texto-suave);
+  background: #e5e7eb; padding: .35rem .8rem; border-radius: 6px; display: inline-block;
+}
+.cabecalho { margin-bottom: 1.2rem; }
+.semana-alvo { font-size: 1.25rem; margin: .2rem 0; }
+.explicacao, .obs { color: var(--texto-suave); font-size: .95rem; margin: .2rem 0; }
+.obs { color: var(--roxo); font-weight: 600; }
+
+/* ---------- Etiquetas coloridas ---------- */
+.etiqueta {
+  display: inline-block; color: #fff; font-weight: 600; font-size: .95rem;
+  padding: .2rem .75rem; border-radius: 999px; margin-left: .4rem; vertical-align: middle;
+}
+.etiqueta.pequena { font-size: .75rem; padding: .05rem .5rem; }
+.vermelho { background: var(--vermelho); }
+.laranja { background: var(--laranja); }
+.roxo { background: var(--roxo); }
+.cinza { background: var(--cinza); }
+.azul { background: var(--azul); }
+
+/* ---------- Filtros e botões ---------- */
+.filtros {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem;
+  background: var(--branco); border: 1px solid var(--borda); border-radius: 10px;
+  padding: 1rem 1.2rem; margin-bottom: 1.2rem;
+}
+.filtros label { display: flex; flex-direction: column; font-size: .9rem; font-weight: 600; gap: .25rem; }
+input, select, button { font: inherit; }
+.filtros input, .filtros select, .caixa-login input {
+  padding: .5rem .7rem; border: 1px solid #9aa5b1; border-radius: 6px; background: #fff; min-height: 44px;
+}
+.botao {
+  display: inline-block; padding: .55rem 1.1rem; min-height: 44px;
+  border: 1px solid var(--destaque); border-radius: 6px; background: #fff; color: var(--destaque);
+  font-weight: 600; cursor: pointer; text-decoration: none;
+}
+.botao:hover { background: #eaf1fb; }
+.botao.principal { background: var(--destaque); color: #fff; }
+.botao.principal:hover { background: #174a8b; }
+.botao.pequeno { padding: .3rem .7rem; min-height: 36px; font-size: .9rem; }
+.botao.discreto { border-color: #9aa5b1; color: var(--texto-suave); }
+
+/* ---------- Tabelas ---------- */
+.tabela {
+  width: 100%; border-collapse: collapse; background: var(--branco);
+  border: 1px solid var(--borda); border-radius: 10px; overflow: hidden;
+}
+.tabela th, .tabela td { padding: .75rem 1rem; text-align: left; border-bottom: 1px solid var(--borda); vertical-align: top; }
+.tabela thead th { background: #e9edf2; font-size: .9rem; }
+.tabela tbody tr:hover { background: #f8fafc; }
+.tabela tfoot td { font-weight: 700; background: #e9edf2; }
+.num { text-align: right !important; white-space: nowrap; }
+.tabela th.num { white-space: normal; }
+.tabela-familias th:first-child { width: 34%; }
+.num small { display: block; color: var(--texto-suave); }
+.vazio { text-align: center !important; color: var(--texto-suave); padding: 2rem !important; }
+.qtd-final { width: 6.5rem; padding: .4rem .5rem; border: 2px solid var(--destaque); border-radius: 6px; text-align: right; font-weight: 700; }
+
+/* Sabores (família expandida) */
+summary { cursor: pointer; font-weight: 600; }
+summary:hover { color: var(--destaque); }
+.qtd-sabores { white-space: nowrap; font-weight: 400; font-size: .85rem; color: var(--texto-suave); margin-left: .3rem; }
+.sabores { margin: .6rem 0 .3rem 1.2rem; border-collapse: collapse; font-size: .95rem; }
+.sabores th, .sabores td { padding: .25rem .8rem; border-bottom: 1px dashed var(--borda); text-align: left; }
+.sabores th { font-size: .8rem; color: var(--texto-suave); }
+.alerta-caixa {
+  margin: .5rem 0 0 1.2rem; padding: .5rem .8rem; max-width: 34rem; font-size: .9rem;
+  background: #fff3e0; border-left: 4px solid var(--laranja);
+}
+
+/* ---------- Lista de alerta ---------- */
+.faixa-alerta {
+  background: #fff3e0; border: 2px solid var(--laranja); border-radius: 10px;
+  padding: 1rem 1.2rem; margin-bottom: 1.2rem; color: #7a2e00;
+}
+.tabela-alerta thead th { background: #ffe0b2; }
+.tabela-alerta tbody tr { border-left: 6px solid var(--laranja); }
+.acoes div { display: flex; flex-wrap: wrap; gap: .4rem; }
+
+/* ---------- Análise: cards e gráfico ---------- */
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.card { background: var(--branco); border: 1px solid var(--borda); border-radius: 10px; padding: 1.2rem; }
+.card-titulo { display: block; color: var(--texto-suave); font-size: .95rem; }
+.card-valor { display: block; font-size: 1.9rem; margin: .3rem 0; }
+.card small { color: var(--texto-suave); }
+.sobe { color: var(--verde); font-weight: 700; }
+.desce { color: var(--vermelho); font-weight: 700; }
+
+.grafico {
+  display: flex; align-items: flex-end; gap: 1.5rem; height: 340px;
+  background: var(--branco); border: 1px solid var(--borda); border-radius: 10px; padding: 1.5rem 1.5rem 0;
+}
+.coluna { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; }
+.area-barra { flex: 1; width: 70%; display: flex; align-items: flex-end; padding-top: 2rem; }
+.barra { width: 100%; border-radius: 6px 6px 0 0; position: relative; }
+.valor-barra { position: absolute; bottom: 100%; left: 0; right: 0; text-align: center; font-weight: 700; padding-bottom: .2rem; white-space: nowrap; }
+.rotulo-barra { text-align: center; font-size: .85rem; padding: .5rem 0 1rem; height: 5rem; color: var(--texto-suave); }
+.rotulo-barra b { color: var(--texto); }
+
+/* ---------- Calendário ---------- */
+.legenda { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: .5rem; }
+.legenda i { display: inline-block; width: 1.1rem; height: 1.1rem; border-radius: 4px; vertical-align: -3px; margin-right: .3rem; }
+.calendario { width: 100%; border-collapse: separate; border-spacing: 6px; table-layout: fixed; }
+.calendario th { font-size: .9rem; color: var(--texto-suave); padding: .3rem; }
+.calendario td {
+  height: 6rem; vertical-align: top; padding: .5rem; border-radius: 8px;
+  background: var(--branco); border: 1px solid var(--borda);
+}
+.calendario td.vermelho { background: var(--vermelho); }
+.calendario td.laranja { background: var(--laranja); }
+.calendario td.roxo { background: var(--roxo); }
+.calendario td.cinza { background: var(--cinza); }
+.calendario td.vermelho, .calendario td.laranja, .calendario td.roxo, .calendario td.cinza { color: #fff; border-color: transparent; }
+.calendario td.fora { background: transparent; border: none; }
+.numero-dia { display: block; font-size: 1.3rem; font-weight: 700; }
+.marca-dia { display: block; font-size: .78rem; line-height: 1.25; }
+
+/* ---------- Login ---------- */
+.pagina-login { align-items: center; justify-content: center; background: var(--menu); }
+.caixa-login {
+  background: var(--branco); padding: 2.5rem; border-radius: 12px; width: 400px;
+  display: flex; flex-direction: column; gap: .4rem; box-shadow: 0 10px 30px rgba(0,0,0,.3);
+}
+.caixa-login h1 { margin: 0; color: var(--destaque); }
+.caixa-login .subtitulo { margin: 0 0 1rem; color: var(--texto-suave); font-size: 1.1rem; }
+.caixa-login label { font-weight: 600; margin-top: .5rem; }
+.caixa-login .botao { margin-top: 1.2rem; }
+.nota { font-size: .85rem; color: var(--texto-suave); text-align: center; }
+
+/* ---------- Impressão: só cabeçalho + tabela, em preto e branco ---------- */
+.so-impressao { display: none; }
+
+@media print {
+  body { display: block; background: #fff; color: #000; font-size: 12pt; }
+  .menu, .filtros, .nao-imprimir, .aviso-prototipo, .botao, .alerta-caixa, .qtd-sabores, .etiqueta.pequena { display: none !important; }
+  .so-impressao { display: block; }
+  .conteudo { padding: 0; }
+  .explicacao, .obs { color: #000; }
+  .etiqueta { background: none !important; color: #000; border: 1px solid #000; }
+  .tabela { border: 1px solid #000; border-radius: 0; }
+  .tabela th, .tabela td { border-bottom: 1px solid #000; padding: .35rem .5rem; color: #000; }
+  .tabela thead th { background: none; }
+  .tabela tbody tr { page-break-inside: avoid; }
+  .num small { color: #000; }
+  .qtd-final { border: none; width: 4.5rem; padding: 0; font-size: 12pt; }
+  summary { list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  .assinatura { margin-top: 2rem; }
+}

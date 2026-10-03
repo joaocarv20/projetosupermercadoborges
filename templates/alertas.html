@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block titulo %}Lista de alerta{% endblock %}
+{% block conteudo %}
+
+<header class="cabecalho">
+  <h1>Lista de alerta</h1>
+  <p class="explicacao">Produtos ativos sem venda recente</p>
+</header>
+
+<div class="faixa-alerta">
+  <strong>{{ alertas|length }} produtos</strong> costumam vender quase toda semana, mas não venderam nada nos últimos dias.
+  Quando o produto acaba na prateleira ele para de vender e some do relatório de compra — confira cada um.
+</div>
+
+<table class="tabela tabela-alerta">
+  <thead>
+    <tr>
+      <th>Produto</th>
+      <th>Departamento</th>
+      <th>Última venda</th>
+      <th>Frequência de venda</th>
+      <th>Motivo provável</th>
+      <th class="nao-imprimir">Ações</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for a in alertas %}
+    <tr>
+      <td><strong>{{ a.produto }}</strong></td>
+      <td>{{ a.departamento }}</td>
+      <td>há <strong>{{ a.dias_sem_venda }} dias</strong></td>
+      <td>vendeu em {{ a.semanas_com_venda }} de {{ a.semanas_total }} semanas</td>
+      <td>{{ a.motivo }}</td>
+      <td class="acoes nao-imprimir">
+        <!-- Botões apenas visuais neste protótipo -->
+        <div>
+          <button type="button" class="botao pequeno">Verificar</button>
+          <button type="button" class="botao pequeno">Já comprei</button>
+          <button type="button" class="botao pequeno discreto">Produto descontinuado</button>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

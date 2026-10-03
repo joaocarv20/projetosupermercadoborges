@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block titulo %}Calendário de dias quentes{% endblock %}
+
+{% block conteudo %}
+{% set curto = {"salario": "Salário", "recarga": "Recarga cartão", "fraca": "Semana fraca", "feriado": "Feriado"} %}
+
+<header class="cabecalho">
+  <h1>Calendário de dias quentes <span class="etiqueta cinza">Fase 2 – em breve</span></h1>
+  <p class="explicacao">Mostra quais dias do mês costumam vender mais. Feriados de Anápolis já incluídos.</p>
+</header>
+
+<form class="filtros nao-imprimir" method="get">
+  {% if mes > 1 %}<a class="botao" href="?mes={{ mes - 1 }}">‹ {{ meses[mes - 2] }}</a>{% endif %}
+  <label>Mês
+    <select name="mes" onchange="this.form.submit()">
+      {% for nome in meses %}
+        <option value="{{ loop.index }}" {{ 'selected' if loop.index == mes }}>{{ nome }}/2026</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% if mes < 12 %}<a class="botao" href="?mes={{ mes + 1 }}">{{ meses[mes] }} ›</a>{% endif %}
+</form>
+
+<div class="legenda">
+  <span><i class="vermelho"></i> Salário</span>
+  <span><i class="laranja"></i> Recarga do cartão alimentação</span>
+  <span><i class="roxo"></i> Feriado</span>
+  <span><i class="cinza"></i> Semana fraca</span>
+</div>
+
+<h2>{{ meses[mes - 1] }} de 2026</h2>
+<table class="calendario">
+  <thead>
+    <tr><th>Dom</th><th>Seg</th><th>Ter</th><th>Qua</th><th>Qui</th><th>Sex</th><th>Sáb</th></tr>
+  </thead>
+  <tbody>
+    {% for semana in semanas %}
+    <tr>
+      {% for dia in semana %}
+        {% if dia.fora %}
+          <td class="fora"></td>
+        {% else %}
+          <td class="{{ tipos[dia.tipos[0]].cor if dia.tipos }}">
+            <span class="numero-dia">{{ dia.data.day }}</span>
+            {% if dia.feriado %}<span class="marca-dia">{{ dia.feriado }}</span>{% endif %}
+            {% for t in dia.tipos if t != 'feriado' %}<span class="marca-dia">{{ curto[t] }}</span>{% endfor %}
+          </td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

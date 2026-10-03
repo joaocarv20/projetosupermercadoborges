@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}{% endblock %} – Compras Inteligentes</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <!-- Menu lateral (some na impressão) -->
+  <nav class="menu">
+    <div class="marca">
+      <strong>Compras Inteligentes</strong>
+      <span>Supermercado Borger</span>
+    </div>
+    {% set atual = request.endpoint %}
+    <a href="{{ url_for('sugestao') }}" class="{{ 'ativo' if atual == 'sugestao' }}">Sugestão de compra</a>
+    <a href="{{ url_for('alertas') }}" class="{{ 'ativo' if atual == 'alertas' }}">Lista de alerta <span class="contador">{{ total_alertas }}</span></a>
+    <a href="{{ url_for('analise') }}" class="{{ 'ativo' if atual == 'analise' }}">Análise de vendas</a>
+    <a href="{{ url_for('calendario') }}" class="{{ 'ativo' if atual == 'calendario' }}">Calendário de dias quentes
+      <span class="fase2">Fase 2 – em breve</span></a>
+    <a href="{{ url_for('login') }}" class="sair">Sair</a>
+  </nav>
+
+  <main class="conteudo">
+    <p class="aviso-prototipo">Protótipo – todos os dados desta tela são fictícios.</p>
+    {% block conteudo %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block titulo %}Análise de vendas{% endblock %}
+
+{% block conteudo %}
+{# Mostra +5,2% em verde ou −3,1% em vermelho #}
+{% macro variacao(v) -%}
+  <span class="{{ 'sobe' if v >= 0 else 'desce' }}">{{ '+' if v >= 0 else '−' }}{{ (v|abs)|br(1) }}%</span>
+{%- endmacro %}
+
+<header class="cabecalho">
+  <h1>Análise de vendas por período</h1>
+  <p class="explicacao">Período: {{ inicio|data_br }} a {{ fim|data_br }}</p>
+</header>
+
+<form class="filtros nao-imprimir" method="get">
+  <label>Data inicial <input type="date" name="inicio" value="{{ inicio.isoformat() }}"></label>
+  <label>Data final <input type="date" name="fim" value="{{ fim.isoformat() }}"></label>
+  <button type="submit" class="botao">Atualizar</button>
+</form>
+
+<section class="cards">
+  <div class="card">
+    <span class="card-titulo">Total vendido no período</span>
+    <strong class="card-valor">R$ {{ total.atual|br(2) }}</strong>
+  </div>
+  <div class="card">
+    <span class="card-titulo">Comparado ao período anterior</span>
+    <strong class="card-valor">{{ variacao(var_anterior) }}</strong>
+    <small>{{ anterior[0]|data_br }} a {{ anterior[1]|data_br }}: R$ {{ total.anterior|br(2) }}</small>
+  </div>
+  <div class="card">
+    <span class="card-titulo">Comparado ao mesmo período do ano passado</span>
+    <strong class="card-valor">{{ variacao(var_ano) }}</strong>
+    <small>{{ ano_passado[0]|data_br }} a {{ ano_passado[1]|data_br }}: R$ {{ total.ano_passado|br(2) }}</small>
+  </div>
+</section>
+
+<h2>Vendas por departamento</h2>
+<table class="tabela">
+  <thead>
+    <tr>
+      <th>Departamento</th>
+      <th class="num">Vendido no período</th>
+      <th class="num">Período anterior</th>
+      <th class="num">Variação</th>
+      <th class="num">Ano passado</th>
+      <th class="num">Variação</th>
+      <th class="num">Participação</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in linhas %}
+    <tr>
+      <td>{{ l.departamento }}</td>
+      <td class="num">R$ {{ l.atual|br(2) }}</td>
+      <td class="num">R$ {{ l.anterior|br(2) }}</td>
+      <td class="num">{{ variacao(l.var) }}</td>
+      <td class="num">R$ {{ l.ano_passado|br(2) }}</td>
+      <td class="num">{{ variacao(l.var_ano) }}</td>
+      <td class="num">{{ l.participacao|br(1) }}%</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td>Total</td>
+      <td class="num">R$ {{ total.atual|br(2) }}</td>
+      <td class="num">R$ {{ total.anterior|br(2) }}</td>
+      <td class="num">{{ variacao(var_anterior) }}</td>
+      <td class="num">R$ {{ total.ano_passado|br(2) }}</td>
+      <td class="num">{{ variacao(var_ano) }}</td>
+      <td class="num">100%</td>
+    </tr>
+  </tfoot>
+</table>
+
+<h2>Vendas por semana do mês</h2>
+<p class="explicacao">Repare como a semana de salário vende muito mais que a semana fraca.</p>
+<!-- Gráfico feito só com CSS: a altura de cada barra é proporcional à maior semana -->
+<div class="grafico">
+  {% for s in semanas_mes %}
+  <div class="coluna">
+    <div class="area-barra">
+      <div class="barra {{ tipos[s.tipo].cor }}" style="height: {{ (s.valor / maior_semana * 100)|round(1) }}%">
+        <span class="valor-barra">R$ {{ (s.valor / 1000)|br }} mil</span>
+      </div>
+    </div>
+    <span class="rotulo-barra">{{ s.semana }}<br><b>{{ tipos[s.tipo].nome }}</b></span>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
