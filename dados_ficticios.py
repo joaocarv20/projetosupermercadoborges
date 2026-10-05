@@ -1,5 +1,5 @@
 """
-DADOS FICTÍCIOS do protótipo "Compras Inteligentes – Supermercado Borger".
+DADOS FICTÍCIOS do protótipo "Compras Inteligentes – Supermercado Borges".
 
 Tudo aqui é inventado e fixo. Quando o sistema for ligado ao banco Oracle,
 é ESTE arquivo que será trocado por consultas reais. As telas (app.py e

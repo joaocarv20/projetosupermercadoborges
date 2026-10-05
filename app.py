@@ -1,5 +1,5 @@
 """
-Protótipo visual – Compras Inteligentes – Supermercado Borger.
+Protótipo visual – Compras Inteligentes – Supermercado Borges.
 
 Para rodar:  python app.py   e abra  http://127.0.0.1:5000
 Não há banco de dados nem login de verdade: tudo vem de dados_ficticios.py.

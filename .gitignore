@@ -1,5 +1,12 @@
-.DS_Store
-__pycache__/
-*.py[cod]
+# Credenciais do banco
+.env
+
+# Python
 .venv/
-venv/
+__pycache__/
+
+# Sistema do Mac
+.DS_Store
+
+# Resultado do conferir_vendas.py (totais de venda, refeito a cada execução)
+conferencia_vendas.md
