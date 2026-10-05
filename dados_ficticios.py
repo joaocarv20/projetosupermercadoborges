@@ -5,7 +5,6 @@ Tudo aqui é inventado e fixo. Quando o sistema for ligado ao banco Oracle,
 é ESTE arquivo que será trocado por consultas reais. As telas (app.py e
 templates/) continuam iguais, desde que os dados mantenham o mesmo formato.
 """
-from datetime import date
 
 # ---------------------------------------------------------------------------
 # Tipos de semana
@@ -169,24 +168,3 @@ VENDAS_SEMANAS_MES = [
     {"semana": "21/09 a 27/09", "tipo": "fraca",   "valor": 139800.00},
     {"semana": "28/09 a 04/10", "tipo": "salario", "valor": 259700.00},
 ]
-
-# ---------------------------------------------------------------------------
-# Feriados 2026 (nacionais + Anápolis)
-# ---------------------------------------------------------------------------
-FERIADOS = {
-    date(2026, 1, 1): "Confraternização Universal",
-    date(2026, 2, 16): "Carnaval",
-    date(2026, 2, 17): "Carnaval",
-    date(2026, 4, 3): "Sexta-feira Santa",
-    date(2026, 4, 21): "Tiradentes",
-    date(2026, 5, 1): "Dia do Trabalho",
-    date(2026, 6, 4): "Corpus Christi",
-    date(2026, 7, 26): "Sant'Ana (Anápolis)",
-    date(2026, 7, 31): "Aniversário de Anápolis",
-    date(2026, 9, 7): "Independência do Brasil",
-    date(2026, 10, 12): "Nossa Senhora Aparecida",
-    date(2026, 11, 2): "Finados",
-    date(2026, 11, 15): "Proclamação da República",
-    date(2026, 11, 20): "Consciência Negra",
-    date(2026, 12, 25): "Natal",
-}

@@ -12,6 +12,7 @@ from datetime import date, timedelta
 from flask import Flask, redirect, render_template, request, url_for
 
 import dados_ficticios as dados
+from calendario import feriado, tipos_do_dia
 
 app = Flask(__name__)
 
@@ -152,30 +153,7 @@ def analise():
 # ---------------------------------------------------------------------------
 # Calendário de dias quentes (Fase 2)
 # ---------------------------------------------------------------------------
-def dias_uteis(ano, mes):
-    """Dias de segunda a sexta que não são feriado.
-    Obs.: aqui sábado NÃO conta como dia útil (pagamento cai por banco). Ajuste se preciso."""
-    ultimo = calendar.monthrange(ano, mes)[1]
-    return [d for d in range(1, ultimo + 1)
-            if date(ano, mes, d).weekday() < 5 and date(ano, mes, d) not in dados.FERIADOS]
-
-
-def tipos_do_dia(dia):
-    """Lista de marcações do dia, da mais importante para a menos importante."""
-    uteis = dias_uteis(dia.year, dia.month)
-    tipos = []
-    if dia in dados.FERIADOS:
-        tipos.append("feriado")
-    # Salário: do último dia útil do mês até o 5º dia útil do mês seguinte
-    if dia.day <= uteis[4] or dia.day >= uteis[-1]:
-        tipos.append("salario")
-    if dia.day in (1, 20):
-        tipos.append("recarga")
-    if dia.day >= 23 and "salario" not in tipos:
-        tipos.append("fraca")
-    return tipos
-
-
+# As regras (salário, recarga, feriados) ficam em calendario.py, que o motor também usa.
 @app.route("/calendario")
 def calendario():
     try:
@@ -187,7 +165,7 @@ def calendario():
     semanas = []
     for semana in calendar.Calendar(firstweekday=6).monthdatescalendar(2026, mes):  # começa no domingo
         semanas.append([{"data": d, "fora": d.month != mes, "tipos": tipos_do_dia(d),
-                         "feriado": dados.FERIADOS.get(d)} for d in semana])
+                         "feriado": feriado(d)} for d in semana])
 
     return render_template("calendario.html", semanas=semanas, mes=mes, meses=MESES, tipos=dados.TIPOS_SEMANA)
 

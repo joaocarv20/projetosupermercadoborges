@@ -10,3 +10,7 @@ __pycache__/
 
 # Resultado do conferir_vendas.py (totais de venda, refeito a cada execução)
 conferencia_vendas.md
+
+# Base local com as vendas do mercado (gerada pelo extrator.py)
+dados/
+departamentos.md
