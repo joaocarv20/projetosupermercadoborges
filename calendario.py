@@ -71,6 +71,23 @@ def tipo_principal(dia):
     return next((t for t in ("salario", "recarga", "fraca") if t in tipos), "meio")
 
 
+def tipo_semana(segunda):
+    """Tipo da semana (segunda a domingo): feriado, salario, recarga, fraca ou meio.
+    Com um dia de feriado a semana vai "à parte"; senão, 3 ou mais dias de salário ou de semana fraca
+    decidem, e um dia 1 ou 20 marca a semana da recarga."""
+    dias = [segunda + timedelta(days=i) for i in range(7)]
+    if any(feriado(d) for d in dias):
+        return "feriado"
+    tipos = [tipos_do_dia(d) for d in dias]
+    if sum("salario" in t for t in tipos) >= 3:
+        return "salario"
+    if any("recarga" in t for t in tipos):
+        return "recarga"
+    if sum("fraca" in t for t in tipos) >= 3:
+        return "fraca"
+    return "meio"
+
+
 def preencher(base, inicio, fim):
     """Grava os dias de inicio a fim na tabela calendario. Pode rodar de novo: não mexe na marca 'atípico'."""
     dias = [inicio + timedelta(days=i) for i in range((fim - inicio).days + 1)]

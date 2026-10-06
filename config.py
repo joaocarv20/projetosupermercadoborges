@@ -7,6 +7,9 @@ ARQUIVO_BASE = Path(__file__).parent / "dados" / "borges.db"
 # O JP.MOVIMENTACAO começa em 12/12/2023: não há venda antes disso
 INICIO_HISTORICO = date(2023, 12, 1)
 
+# Quantas semanas equivalentes (mesmo tipo de semana) entram na mediana da sugestão
+SEMANAS_EQUIVALENTES = 6
+
 # Departamentos do Cefas que NÃO entram na sugestão: código -> nome (como está no Cefas)
 DEPTOS_FORA = {
     # padaria
