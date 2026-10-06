@@ -11,11 +11,13 @@ import secrets
 import sys
 import unicodedata
 from datetime import date, timedelta
+from functools import lru_cache
 
 from flask import Flask, abort, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import alertas as lista_alerta
+import base_local
 import motor
 from base_local import abrir
 from calendario import feriado, tipo_semana, tipos_do_dia
@@ -64,6 +66,17 @@ def variacao_pct(atual, anterior):
     return (atual - anterior) / anterior * 100 if anterior else None
 
 
+@lru_cache(maxsize=16)
+def _guardado(funcao, versao, *args):
+    return funcao(abrir(), *args)
+
+
+def com_cache(funcao, *args):
+    """funcao(base, *args), guardada até a base mudar (extrator, quantidade salva, alerta marcado).
+    O motor e a lista de alerta levam segundos com a base real; assim só a 1ª tela depois da mudança espera."""
+    return _guardado(funcao, base_local.ARQUIVO_BASE.stat().st_mtime_ns, *args)
+
+
 def rotulo_semana(segunda):
     return f"{segunda:%d/%m} a {segunda + timedelta(days=6):%d/%m/%Y}"
 
@@ -82,8 +95,7 @@ def contador_alertas():
     """Número de alertas mostrado no menu lateral, em todas as telas."""
     if "usuario" not in session:
         return {}
-    # ponytail: recalcula a lista a cada página; guardar o número se o menu ficar lento
-    return {"total_alertas": len(lista_alerta.listar(abrir()))}
+    return {"total_alertas": len(com_cache(lista_alerta.listar))}
 
 
 @app.route("/")
@@ -128,7 +140,7 @@ def sugestao():
         semanas.append(semana)
 
     base = abrir()
-    linhas = motor.gerar(base, semana)
+    linhas = com_cache(motor.gerar, semana)
 
     if request.method == "POST":  # "Salvar": grava a sugestão e as quantidades finais digitadas
         motor.gravar(base, semana, linhas)
@@ -149,13 +161,17 @@ def sugestao():
 
     salvas = dict(base.execute("SELECT familia_id, qtd_final FROM sugestoes WHERE semana = ? AND qtd_final IS NOT NULL",
                                (semana.isoformat(),)))
-    departamentos = sorted({l["departamento"] for l in linhas if l["departamento"]})
+    # Um departamento por vez: a lista inteira passa de 5 mil famílias e trava o navegador.
+    # A busca procura em todos os departamentos.
+    departamentos = sorted({l["departamento"] or "SEM DEPARTAMENTO" for l in linhas})
     departamento = request.args.get("departamento", "")
+    if departamento not in departamentos:
+        departamento = departamentos[0] if departamentos else ""
     busca = request.args.get("busca", "").strip()
 
     familias = []
     for l in linhas:
-        if departamento and l["departamento"] != departamento:
+        if not busca and (l["departamento"] or "SEM DEPARTAMENTO") != departamento:
             continue
         if busca and sem_acento(busca) not in sem_acento(" ".join([l["nome"], *(p["descricao"] for p in l["produtos"])])):
             continue
@@ -185,7 +201,7 @@ def alertas():
         except (KeyError, ValueError):
             abort(400)
         return redirect(url_for("alertas"))
-    return render_template("alertas.html", alertas=lista_alerta.listar(base), status=STATUS_ALERTA)
+    return render_template("alertas.html", alertas=com_cache(lista_alerta.listar), status=STATUS_ALERTA)
 
 
 def vendas_por_departamento(base, inicio, fim):

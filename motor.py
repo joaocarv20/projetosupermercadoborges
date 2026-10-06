@@ -57,7 +57,9 @@ def gerar(base, segunda):
     if not semanas:
         return []
     vendas = {s: vendas_da_semana(base, s) for s in semanas}
-    passado = vendas_da_semana(base, segunda - timedelta(weeks=52))  # mesma semana do ano passado
+    passado = {}  # mesma semana do ano passado, somada por família
+    for (familia, _), qtd in vendas_da_semana(base, segunda - timedelta(weeks=52)).items():
+        passado[familia] = passado.get(familia, 0) + qtd
     primeira_venda = dict(base.execute(
         "SELECT p.familia_id, MIN(v.data) FROM vendas_diarias v JOIN produtos p ON p.codprod = v.codprod GROUP BY p.familia_id"))
     cadastro = {f: (nome, unidade, depto) for f, nome, unidade, depto in base.execute(
@@ -85,7 +87,7 @@ def gerar(base, segunda):
         resultado.append({
             "familia_id": familia, "nome": nome, "departamento": depto, "unidade": unidade,
             "mediana": round(mediana, 3), "sugestao": arredondar(mediana, unidade),
-            "ano_passado": arredondar(sum(q for (f, _), q in passado.items() if f == familia), unidade),
+            "ano_passado": arredondar(passado.get(familia, 0), unidade),
             "semanas_usadas": len(uteis),
             "produtos": [{"codprod": c, "descricao": descricao[c], "qtd": round(m, 3), "pct": m / soma * 100}
                          for c, m in sorted(medianas.items(), key=lambda x: -x[1]) if m > 0]})
