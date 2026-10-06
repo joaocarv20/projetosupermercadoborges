@@ -10,6 +10,10 @@ INICIO_HISTORICO = date(2023, 12, 1)
 # Quantas semanas equivalentes (mesmo tipo de semana) entram na mediana da sugestão
 SEMANAS_EQUIVALENTES = 6
 
+# Lista de alerta: produto que vendeu em pelo menos 70% das semanas e está há 7 dias ou mais sem vender
+ALERTA_FREQUENCIA = 0.7
+ALERTA_DIAS_SEM_VENDA = 7
+
 # Departamentos do Cefas que NÃO entram na sugestão: código -> nome (como está no Cefas)
 DEPTOS_FORA = {
     # padaria
