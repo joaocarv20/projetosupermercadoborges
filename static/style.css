@@ -66,10 +66,6 @@ h2 { font-size: 1.3rem; margin: 2rem 0 .8rem; }
 
 /* ---------- Conteúdo ---------- */
 .conteudo { flex: 1; padding: 2rem 2.5rem; min-width: 0; }
-.aviso-prototipo {
-  margin: 0 0 1.2rem; font-size: .9rem; color: var(--texto-suave);
-  background: #e5e7eb; padding: .35rem .8rem; border-radius: 6px; display: inline-block;
-}
 .cabecalho { margin-bottom: 1.2rem; }
 .semana-alvo { font-size: 1.25rem; margin: .2rem 0; }
 .explicacao, .obs { color: var(--texto-suave); font-size: .95rem; margin: .2rem 0; }
@@ -195,13 +191,14 @@ summary:hover { color: var(--destaque); }
 .caixa-login label { font-weight: 600; margin-top: .5rem; }
 .caixa-login .botao { margin-top: 1.2rem; }
 .nota { font-size: .85rem; color: var(--texto-suave); text-align: center; }
+.nota.erro { color: var(--vermelho); font-weight: 600; }
 
 /* ---------- Impressão: só cabeçalho + tabela, em preto e branco ---------- */
 .so-impressao { display: none; }
 
 @media print {
   body { display: block; background: #fff; color: #000; font-size: 12pt; }
-  .menu, .filtros, .nao-imprimir, .aviso-prototipo, .botao, .alerta-caixa, .qtd-sabores, .etiqueta.pequena { display: none !important; }
+  .menu, .filtros, .nao-imprimir, .botao, .alerta-caixa, .qtd-sabores, .etiqueta.pequena { display: none !important; }
   .so-impressao { display: block; }
   .conteudo { padding: 0; }
   .explicacao, .obs { color: #000; }

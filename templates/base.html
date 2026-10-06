@@ -19,11 +19,10 @@
     <a href="{{ url_for('analise') }}" class="{{ 'ativo' if atual == 'analise' }}">Análise de vendas</a>
     <a href="{{ url_for('calendario') }}" class="{{ 'ativo' if atual == 'calendario' }}">Calendário de dias quentes
       <span class="fase2">Fase 2 – em breve</span></a>
-    <a href="{{ url_for('login') }}" class="sair">Sair</a>
+    <a href="{{ url_for('sair') }}" class="sair">Sair</a>
   </nav>
 
   <main class="conteudo">
-    <p class="aviso-prototipo">Protótipo – todos os dados desta tela são fictícios.</p>
     {% block conteudo %}{% endblock %}
   </main>
 </body>

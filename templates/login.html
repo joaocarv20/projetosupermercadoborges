@@ -18,7 +18,7 @@
     <input id="senha" name="senha" type="password" autocomplete="current-password" required>
 
     <button type="submit" class="botao principal">Entrar</button>
-    <p class="nota">Protótipo: qualquer usuário e senha entram.</p>
+    {% if erro %}<p class="nota erro">{{ erro }}</p>{% endif %}
   </form>
 </body>
 </html>

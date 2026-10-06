@@ -1,23 +1,41 @@
 """
-Protótipo visual – Compras Inteligentes – Supermercado Borges.
+Compras Inteligentes – Supermercado Borges. Lê a base local (SQLite) que o extrator preenche.
 
 Para rodar:  python app.py   e abra  http://127.0.0.1:5000
-Não há banco de dados nem login de verdade: tudo vem de dados_ficticios.py.
+Criar ou trocar a senha de um usuário:  python app.py usuario paulo
 """
 import calendar
-import math
+import getpass
+import os
+import secrets
+import sys
 import unicodedata
 from datetime import date, timedelta
 
-from flask import Flask, redirect, render_template, request, url_for
+from flask import Flask, abort, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
-import dados_ficticios as dados
-from calendario import feriado, tipos_do_dia
+import alertas as lista_alerta
+import motor
+from base_local import abrir
+from calendario import feriado, tipo_semana, tipos_do_dia
 
 app = Flask(__name__)
+# Sem SECRET_KEY no ambiente, cada reinício do servidor pede login de novo
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex()
 
 MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho",
          "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+
+TIPOS_SEMANA = {
+    "salario": {"nome": "Semana de salário", "cor": "vermelho"},
+    "recarga": {"nome": "Recarga do cartão alimentação", "cor": "laranja"},
+    "meio":    {"nome": "Meio do mês", "cor": "azul"},
+    "fraca":   {"nome": "Semana fraca", "cor": "cinza"},
+    "feriado": {"nome": "Semana com feriado", "cor": "roxo"},
+}
+
+STATUS_ALERTA = {"verificar": "Verificando", "comprado": "Já comprei", "descontinuado": "Descontinuado"}
 
 
 # ---------------------------------------------------------------------------
@@ -42,91 +60,153 @@ def sem_acento(texto):
 
 
 def variacao_pct(atual, anterior):
-    return (atual - anterior) / anterior * 100
+    """None quando não há base de comparação (a tela mostra um traço)."""
+    return (atual - anterior) / anterior * 100 if anterior else None
+
+
+def rotulo_semana(segunda):
+    return f"{segunda:%d/%m} a {segunda + timedelta(days=6):%d/%m/%Y}"
+
+
+# ---------------------------------------------------------------------------
+# Login
+# ---------------------------------------------------------------------------
+@app.before_request
+def exigir_login():
+    if request.endpoint not in ("login", "static") and "usuario" not in session:
+        return redirect(url_for("login"))
 
 
 @app.context_processor
 def contador_alertas():
     """Número de alertas mostrado no menu lateral, em todas as telas."""
-    return {"total_alertas": len(dados.ALERTAS)}
+    if "usuario" not in session:
+        return {}
+    # ponytail: recalcula a lista a cada página; guardar o número se o menu ficar lento
+    return {"total_alertas": len(lista_alerta.listar(abrir()))}
+
+
+@app.route("/")
+def inicio():
+    return redirect(url_for("sugestao"))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    erro = None
+    if request.method == "POST":
+        usuario = request.form.get("usuario", "").strip().lower()
+        linha = abrir().execute("SELECT senha_hash FROM usuarios WHERE usuario = ?", (usuario,)).fetchone()
+        if linha and check_password_hash(linha[0], request.form.get("senha", "")):
+            session["usuario"] = usuario
+            return redirect(url_for("sugestao"))
+        erro = "Usuário ou senha incorretos."
+    return render_template("login.html", erro=erro)
+
+
+@app.route("/sair")
+def sair():
+    session.clear()
+    return redirect(url_for("login"))
 
 
 # ---------------------------------------------------------------------------
 # Telas
 # ---------------------------------------------------------------------------
-@app.route("/")
-def inicio():
-    return redirect(url_for("login"))
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    # Login FALSO: qualquer usuário e senha entram.
-    if request.method == "POST":
-        return redirect(url_for("sugestao"))
-    return render_template("login.html")
-
-
-@app.route("/sugestao")
+@app.route("/sugestao", methods=["GET", "POST"])
 def sugestao():
-    # Semana escolhida no seletor (padrão: a próxima semana de compra)
-    semana_id = request.args.get("semana", dados.SEMANAS[0]["id"])
-    semana = next((s for s in dados.SEMANAS if s["id"] == semana_id), dados.SEMANAS[0])
-    tipo = dados.TIPOS_SEMANA[semana["tipo"]]
+    # Semanas do seletor: a da compra de hoje e as 3 seguintes
+    primeira = motor.proxima_segunda(date.today())
+    semanas = [primeira + timedelta(weeks=i) for i in range(4)]
+    try:
+        semana = date.fromisoformat(request.args.get("semana", ""))
+    except ValueError:
+        semana = primeira
+    if semana.weekday() != 0:
+        semana = primeira
+    if semana not in semanas:
+        semanas.append(semana)
 
+    base = abrir()
+    linhas = motor.gerar(base, semana)
+
+    if request.method == "POST":  # "Salvar": grava a sugestão e as quantidades finais digitadas
+        motor.gravar(base, semana, linhas)
+        finais = []
+        for l in linhas:
+            texto = request.form.get(f"qtd_{l['familia_id']}", "").strip().replace(",", ".")
+            if not texto:
+                continue
+            try:
+                qtd = float(texto)
+            except ValueError:
+                continue
+            if qtd >= 0:
+                finais.append((qtd, semana.isoformat(), l["familia_id"]))
+        with base:
+            base.executemany("UPDATE sugestoes SET qtd_final = ? WHERE semana = ? AND familia_id = ?", finais)
+        return redirect(request.full_path)
+
+    salvas = dict(base.execute("SELECT familia_id, qtd_final FROM sugestoes WHERE semana = ? AND qtd_final IS NOT NULL",
+                               (semana.isoformat(),)))
+    departamentos = sorted({l["departamento"] for l in linhas if l["departamento"]})
     departamento = request.args.get("departamento", "")
     busca = request.args.get("busca", "").strip()
 
     familias = []
-    for f in dados.FAMILIAS:
-        sabores = [nome for nome, _ in f.get("variacoes", [])]
-        if departamento and f["departamento"] != departamento:
+    for l in linhas:
+        if departamento and l["departamento"] != departamento:
             continue
-        if busca and sem_acento(busca) not in sem_acento(" ".join([f["nome"], *sabores])):
+        if busca and sem_acento(busca) not in sem_acento(" ".join([l["nome"], *(p["descricao"] for p in l["produtos"])])):
             continue
-
-        # No sistema real, a mediana virá do Oracle. Aqui é só base x fator da semana.
-        mediana = round(f["mediana_base"] * tipo["fator"])
-        fardos = math.ceil(mediana / f["fardo"])  # arredonda para cima, em fardos inteiros
-
-        # Sabores: divide a mediana conforme o peso registrado de cada um
-        variacoes = []
-        peso_total = sum(p for _, p in f.get("variacoes", []))
-        for nome, peso in f.get("variacoes", []):
-            variacoes.append({"nome": nome, "qtd": round(mediana * peso / peso_total),
-                              "pct": peso / peso_total * 100})
-        # Se um sabor tem 80% ou mais da venda, provavelmente o caixa registra tudo nele
-        concentrado = bool(variacoes) and max(v["pct"] for v in variacoes) >= 80
-
+        kg = l["unidade"] == "KG"
+        final = salvas.get(l["familia_id"], l["sugestao"])
         familias.append({
-            **f,
-            "mediana": mediana,
-            "fardos": fardos,
-            "sugestao": fardos * f["fardo"],
-            "ano_passado": round(f["ano_passado_base"] * tipo["fator"]),
-            "variacoes": variacoes,
-            "concentrado": concentrado,
+            **l, "un": "kg" if kg else "un", "casas": 1 if kg else 0,
+            "qtd_final": int(final) if final == int(final) else final,  # 75 em vez de 75.0 no campo
+            # Se um produto tem 80% ou mais da venda da família, provavelmente o caixa registra tudo nele
+            "concentrado": len(l["produtos"]) > 1 and max(p["pct"] for p in l["produtos"]) >= 80,
         })
 
-    return render_template("sugestao.html", semana=semana, tipo=tipo, semanas=dados.SEMANAS,
-                           tipos=dados.TIPOS_SEMANA, familias=familias,
-                           departamentos=dados.DEPARTAMENTOS, departamento=departamento, busca=busca)
+    dias = [semana + timedelta(days=i) for i in range(7)]
+    obs = ", ".join(f"{feriado(d)} em {d:%d/%m}" for d in dias if feriado(d))
+    return render_template(
+        "sugestao.html", semana=semana, rotulo=rotulo_semana(semana), tipo=TIPOS_SEMANA[tipo_semana(semana)],
+        obs=obs, semanas=[(s, rotulo_semana(s), TIPOS_SEMANA[tipo_semana(s)]["nome"]) for s in semanas],
+        familias=familias, departamentos=departamentos, departamento=departamento, busca=busca)
 
 
-@app.route("/alertas")
+@app.route("/alertas", methods=["GET", "POST"])
 def alertas():
-    lista = sorted(dados.ALERTAS, key=lambda a: a["dias_sem_venda"], reverse=True)
-    return render_template("alertas.html", alertas=lista)
+    base = abrir()
+    if request.method == "POST":
+        try:
+            lista_alerta.marcar(base, int(request.form["codprod"]), request.form["status"])
+        except (KeyError, ValueError):
+            abort(400)
+        return redirect(url_for("alertas"))
+    return render_template("alertas.html", alertas=lista_alerta.listar(base), status=STATUS_ALERTA)
+
+
+def vendas_por_departamento(base, inicio, fim):
+    """{departamento: valor vendido} entre as duas datas (inclusive)."""
+    return dict(base.execute(
+        """SELECT COALESCE(d.nome, 'SEM DEPARTAMENTO'), SUM(v.valor) FROM vendas_diarias v
+           JOIN produtos p ON p.codprod = v.codprod LEFT JOIN departamentos d ON d.codepto = p.codepto
+           WHERE v.data BETWEEN ? AND ? GROUP BY 1""", (inicio.isoformat(), fim.isoformat())))
 
 
 @app.route("/analise")
 def analise():
-    # Datas escolhidas (padrão: setembro/2026). Data inválida volta para o padrão.
+    base = abrir()
+    # Datas escolhidas (padrão: as 4 semanas até o último dia com venda). Data inválida volta para o padrão.
     try:
         inicio = date.fromisoformat(request.args.get("inicio", ""))
         fim = date.fromisoformat(request.args.get("fim", ""))
     except ValueError:
-        inicio, fim = date(2026, 9, 1), date(2026, 9, 30)
+        ultimo = base.execute("SELECT MAX(data) FROM vendas_diarias").fetchone()[0]
+        fim = date.fromisoformat(ultimo) if ultimo else date.today()
+        inicio = fim - timedelta(days=27)
     if fim < inicio:
         inicio, fim = fim, inicio
 
@@ -136,18 +216,29 @@ def analise():
     anterior = (inicio - timedelta(days=dias), inicio - timedelta(days=1))
     ano_passado = (inicio - timedelta(weeks=52), fim - timedelta(weeks=52))
 
-    deptos = dados.VENDAS_DEPARTAMENTO
-    total = {k: sum(d[k] for d in deptos) for k in ("atual", "anterior", "ano_passado")}
-    linhas = [{**d, "var": variacao_pct(d["atual"], d["anterior"]),
-               "var_ano": variacao_pct(d["atual"], d["ano_passado"]),
-               "participacao": d["atual"] / total["atual"] * 100} for d in deptos]
+    atual = vendas_por_departamento(base, inicio, fim)
+    ant = vendas_por_departamento(base, *anterior)
+    passado = vendas_por_departamento(base, *ano_passado)
+    total = {"atual": sum(atual.values()), "anterior": sum(ant.values()), "ano_passado": sum(passado.values())}
+    linhas = [{"departamento": d, "atual": v, "anterior": ant.get(d, 0), "ano_passado": passado.get(d, 0),
+               "var": variacao_pct(v, ant.get(d, 0)), "var_ano": variacao_pct(v, passado.get(d, 0)),
+               "participacao": v / (total["atual"] or 1) * 100}
+              for d, v in sorted(atual.items(), key=lambda x: -x[1])]
+
+    # Semanas inteiras (segunda a domingo) que terminam dentro do período, para o gráfico de barras
+    semanas, segunda = [], inicio - timedelta(days=inicio.weekday())
+    while segunda + timedelta(days=6) <= fim:
+        valor = base.execute("SELECT COALESCE(SUM(valor), 0) FROM vendas_diarias WHERE data BETWEEN ? AND ?",
+                             (segunda.isoformat(), (segunda + timedelta(days=6)).isoformat())).fetchone()[0]
+        semanas.append({"semana": f"{segunda:%d/%m} a {segunda + timedelta(days=6):%d/%m}",
+                        "tipo": tipo_semana(segunda), "valor": valor})
+        segunda += timedelta(weeks=1)
 
     return render_template(
         "analise.html", inicio=inicio, fim=fim, anterior=anterior, ano_passado=ano_passado,
         total=total, var_anterior=variacao_pct(total["atual"], total["anterior"]),
         var_ano=variacao_pct(total["atual"], total["ano_passado"]), linhas=linhas,
-        semanas_mes=dados.VENDAS_SEMANAS_MES, maior_semana=max(s["valor"] for s in dados.VENDAS_SEMANAS_MES),
-        tipos=dados.TIPOS_SEMANA)
+        semanas_mes=semanas, maior_semana=max((s["valor"] for s in semanas), default=0) or 1, tipos=TIPOS_SEMANA)
 
 
 # ---------------------------------------------------------------------------
@@ -160,15 +251,30 @@ def calendario():
         mes = int(request.args.get("mes", 10))
     except ValueError:
         mes = 10
-    mes = min(max(mes, 1), 12)  # só 2026 neste protótipo
+    mes = min(max(mes, 1), 12)  # só 2026 por enquanto
 
     semanas = []
     for semana in calendar.Calendar(firstweekday=6).monthdatescalendar(2026, mes):  # começa no domingo
         semanas.append([{"data": d, "fora": d.month != mes, "tipos": tipos_do_dia(d),
                          "feriado": feriado(d)} for d in semana])
 
-    return render_template("calendario.html", semanas=semanas, mes=mes, meses=MESES, tipos=dados.TIPOS_SEMANA)
+    return render_template("calendario.html", semanas=semanas, mes=mes, meses=MESES, tipos=TIPOS_SEMANA)
+
+
+def criar_usuario(usuario):
+    senha = getpass.getpass(f"Senha para {usuario}: ")
+    if len(senha) < 6 or senha != getpass.getpass("Repita a senha: "):
+        sys.exit("Senha diferente ou com menos de 6 caracteres. Nada foi gravado.")
+    base = abrir()
+    with base:
+        base.execute("INSERT INTO usuarios (usuario, senha_hash) VALUES (?, ?) "
+                     "ON CONFLICT(usuario) DO UPDATE SET senha_hash = excluded.senha_hash",
+                     (usuario.strip().lower(), generate_password_hash(senha)))
+    print(f"Usuário {usuario} gravado.")
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    if len(sys.argv) == 3 and sys.argv[1] == "usuario":
+        criar_usuario(sys.argv[2])
+    else:
+        app.run(debug=True)

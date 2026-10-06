@@ -19,7 +19,7 @@
       <th>Departamento</th>
       <th>Última venda</th>
       <th>Frequência de venda</th>
-      <th>Motivo provável</th>
+      <th>Situação</th>
       <th class="nao-imprimir">Ações</th>
     </tr>
   </thead>
@@ -28,18 +28,20 @@
     <tr>
       <td><strong>{{ a.produto }}</strong></td>
       <td>{{ a.departamento }}</td>
-      <td>há <strong>{{ a.dias_sem_venda }} dias</strong></td>
+      <td>há <strong>{{ a.dias_sem_venda }} dias</strong> <small>({{ a.ultima_venda|data_br }})</small></td>
       <td>vendeu em {{ a.semanas_com_venda }} de {{ a.semanas_total }} semanas</td>
-      <td>{{ a.motivo }}</td>
+      <td>{{ status[a.status] if a.status else '—' }}</td>
       <td class="acoes nao-imprimir">
-        <!-- Botões apenas visuais neste protótipo -->
-        <div>
-          <button type="button" class="botao pequeno">Verificar</button>
-          <button type="button" class="botao pequeno">Já comprei</button>
-          <button type="button" class="botao pequeno discreto">Produto descontinuado</button>
-        </div>
+        <form method="post">
+          <input type="hidden" name="codprod" value="{{ a.codprod }}">
+          <button name="status" value="verificar" class="botao pequeno">Verificar</button>
+          <button name="status" value="comprado" class="botao pequeno">Já comprei</button>
+          <button name="status" value="descontinuado" class="botao pequeno discreto">Produto descontinuado</button>
+        </form>
       </td>
     </tr>
+    {% else %}
+    <tr><td colspan="6" class="vazio">Nenhum produto em alerta.</td></tr>
     {% endfor %}
   </tbody>
 </table>

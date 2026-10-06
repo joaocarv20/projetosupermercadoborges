@@ -5,19 +5,19 @@
 <header class="cabecalho">
   <h1>Sugestão de compra da semana</h1>
   <p class="semana-alvo">
-    Semana: <strong>{{ semana.rotulo }}</strong>
+    Semana: <strong>{{ rotulo }}</strong>
     <span class="etiqueta {{ tipo.cor }}">{{ tipo.nome }}</span>
   </p>
-  {% if semana.obs %}<p class="obs">{{ semana.obs }}</p>{% endif %}
-  <p class="explicacao">Baseado na mediana de 6 semanas equivalentes dos últimos anos.</p>
+  {% if obs %}<p class="obs">Feriado: {{ obs }}</p>{% endif %}
+  <p class="explicacao">Mediana das últimas 6 semanas do mesmo tipo. A sugestão está em unidades ou quilos: converta para caixas na hora de pedir.</p>
 </header>
 
 <!-- Filtros: enviados pela URL (GET), sem JavaScript -->
 <form class="filtros nao-imprimir" method="get">
   <label>Semana
     <select name="semana">
-      {% for s in semanas %}
-        <option value="{{ s.id }}" {{ 'selected' if s.id == semana.id }}>{{ s.rotulo }} – {{ tipos[s.tipo].nome }}</option>
+      {% for s, r, nome in semanas %}
+        <option value="{{ s.isoformat() }}" {{ 'selected' if s == semana }}>{{ r }} – {{ nome }}</option>
       {% endfor %}
     </select>
   </label>
@@ -33,9 +33,14 @@
     <input type="search" name="busca" value="{{ busca }}" placeholder="Ex.: detergente">
   </label>
   <button type="submit" class="botao">Aplicar</button>
-  <button type="button" class="botao principal" onclick="window.print()">Imprimir lista de compra</button>
 </form>
 
+<!-- Sem action: envia para a mesma URL, com os filtros, e volta para ela depois de salvar -->
+<form method="post">
+<p class="nao-imprimir">
+  <button type="submit" class="botao principal">Salvar quantidades</button>
+  <button type="button" class="botao" onclick="window.print()">Imprimir lista de compra</button>
+</p>
 <table class="tabela tabela-familias">
   <thead>
     <tr>
@@ -51,16 +56,16 @@
     {% for f in familias %}
     <tr>
       <td>
-        {% if f.variacoes %}
+        {% if f.produtos|length > 1 %}
           <!-- <details> abre/fecha os sabores sem precisar de JavaScript -->
           <details>
-            <summary>{{ f.nome }} <span class="qtd-sabores">{{ f.variacoes|length }} sabores</span>
+            <summary>{{ f.nome }} <span class="qtd-sabores">{{ f.produtos|length }} sabores</span>
               {% if f.concentrado %}<span class="etiqueta laranja pequena">verificar registro</span>{% endif %}
             </summary>
             <table class="sabores">
               <tr><th>Sabor / variação</th><th class="num">Venda registrada</th><th class="num">% da família</th></tr>
-              {% for v in f.variacoes %}
-              <tr><td>{{ v.nome }}</td><td class="num">{{ v.qtd|br }} un</td><td class="num">{{ v.pct|br(1) }}%</td></tr>
+              {% for v in f.produtos %}
+              <tr><td>{{ v.descricao }}</td><td class="num">{{ v.qtd|br(f.casas) }} {{ f.un }}</td><td class="num">{{ v.pct|br(1) }}%</td></tr>
               {% endfor %}
             </table>
             {% if f.concentrado %}
@@ -74,14 +79,14 @@
       </td>
       <td>{{ f.departamento }}</td>
       <td class="num">
-        <strong>{{ f.sugestao|br }} un</strong>
-        <small>{{ f.fardos }} {{ f.embalagem }}{{ 's' if f.fardos != 1 }} de {{ f.fardo }}</small>
+        <strong>{{ f.sugestao|br(f.casas) }} {{ f.un }}</strong>
+        {% if f.semanas_usadas < 6 %}<small>só {{ f.semanas_usadas }} semana{{ 's' if f.semanas_usadas > 1 }} de histórico</small>{% endif %}
       </td>
-      <td class="num">{{ f.mediana|br }} un</td>
-      <td class="num">{{ f.ano_passado|br }} un</td>
+      <td class="num">{{ f.mediana|br(f.casas) }} {{ f.un }}</td>
+      <td class="num">{{ f.ano_passado|br(f.casas) }} {{ f.un }}</td>
       <td class="num">
-        <input class="qtd-final" type="number" min="0" step="{{ f.fardo }}" value="{{ f.sugestao }}"
-               aria-label="Quantidade final de {{ f.nome }}"> un
+        <input class="qtd-final" type="number" min="0" step="{{ '0.1' if f.casas else '1' }}" name="qtd_{{ f.familia_id }}"
+               value="{{ f.qtd_final }}" aria-label="Quantidade final de {{ f.nome }}"> {{ f.un }}
       </td>
     </tr>
     {% else %}
@@ -89,6 +94,7 @@
     {% endfor %}
   </tbody>
 </table>
+</form>
 
 <p class="so-impressao assinatura">Comprador: ______________________________ &nbsp;&nbsp; Data: ____/____/______</p>
 {% endblock %}

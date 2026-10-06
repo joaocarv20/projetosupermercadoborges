@@ -4,12 +4,12 @@
 {% block conteudo %}
 {# Mostra +5,2% em verde ou −3,1% em vermelho #}
 {% macro variacao(v) -%}
-  <span class="{{ 'sobe' if v >= 0 else 'desce' }}">{{ '+' if v >= 0 else '−' }}{{ (v|abs)|br(1) }}%</span>
+  {% if v is none %}—{% else %}<span class="{{ 'sobe' if v >= 0 else 'desce' }}">{{ '+' if v >= 0 else '−' }}{{ (v|abs)|br(1) }}%</span>{% endif %}
 {%- endmacro %}
 
 <header class="cabecalho">
   <h1>Análise de vendas por período</h1>
-  <p class="explicacao">Período: {{ inicio|data_br }} a {{ fim|data_br }}</p>
+  <p class="explicacao">Período: {{ inicio|data_br }} a {{ fim|data_br }}. Sem açougue, padaria e hortifrúti.</p>
 </header>
 
 <form class="filtros nao-imprimir" method="get">
@@ -74,8 +74,7 @@
   </tfoot>
 </table>
 
-<h2>Vendas por semana do mês</h2>
-<p class="explicacao">Repare como a semana de salário vende muito mais que a semana fraca.</p>
+<h2>Vendas por semana</h2>
 <!-- Gráfico feito só com CSS: a altura de cada barra é proporcional à maior semana -->
 <div class="grafico">
   {% for s in semanas_mes %}
