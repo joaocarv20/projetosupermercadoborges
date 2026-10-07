@@ -82,6 +82,7 @@ h2 { font-size: 1.3rem; margin: 2rem 0 .8rem; }
 .roxo { background: var(--roxo); }
 .cinza { background: var(--cinza); }
 .azul { background: var(--azul); }
+.verde { background: var(--verde); }
 
 /* ---------- Filtros e botões ---------- */
 .filtros {
@@ -213,3 +214,9 @@ summary:hover { color: var(--destaque); }
   summary::-webkit-details-marker { display: none; }
   .assinatura { margin-top: 2rem; }
 }
+
+/* ---------- Famílias ---------- */
+.filtros-linha { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem; }
+.faixa-ok { background: #e8f5e9; border: 2px solid var(--verde); border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1.2rem; }
+.mover { display: flex; gap: .4rem; }
+.mover input { flex: 1; min-width: 12rem; padding: .3rem .5rem; border: 1px solid #9aa5b1; border-radius: 6px; }

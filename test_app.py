@@ -1,4 +1,5 @@
 """Teste das telas com uma base inventada (login, sugestão, alerta e análise).  Rode:  python test_app.py"""
+import io
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
@@ -45,6 +46,27 @@ assert "FEIJAO 1KG" not in cliente.get("/alertas").text
 assert cliente.get("/analise").status_code == 200
 assert cliente.get("/analise?inicio=2020-01-01&fim=2020-01-31").status_code == 200  # período sem vendas
 assert cliente.get("/calendario").status_code == 200
+
+assert "Ainda não há semana" in cliente.get("/acompanhamento").text                # a semana salva acima não terminou
+fechada = (motor.proxima_segunda(date.today()) - timedelta(weeks=3)).isoformat()
+base.execute("INSERT INTO sugestoes VALUES (?, 1, 70, 80)", (fechada,))
+base.commit()
+pagina = cliente.get("/acompanhamento?semana=lixo").text                          # semana inválida: a mais recente
+assert "ARROZ" in pagina and "0 × 1" in pagina                  # vendeu 70: sistema mais perto
+# Famílias: mover um produto, baixar e enviar a planilha
+assert "ARROZ 5KG" in cliente.get("/familias").text
+cliente.post("/familias", data={"codprod": "2", "familia": "graos"})
+assert base.execute("SELECT f.nome FROM produtos p JOIN familias f ON f.id = p.familia_id WHERE codprod = 2").fetchone() == ("GRAOS",)
+assert "FEIJAO 1KG;MERCEARIA BASICA;GRAOS" in cliente.get("/familias.csv").get_data(as_text=True)
+envio = {"planilha": (io.BytesIO("codigo;familia\n2;GRAOS E CIA\n".encode()), "f.csv")}
+assert cliente.post("/familias", data=envio, content_type="multipart/form-data").location.endswith("importados=1")
+envio = {"planilha": (io.BytesIO(b"x;y\n"), "f.csv")}
+assert "colunas" in cliente.post("/familias", data=envio, content_type="multipart/form-data").text
+
+# Sugestão por sabor: o feijão entra na família do arroz e a compra é repartida pela venda de cada um
+cliente.post("/familias", data={"codprod": "2", "familia": "ARROZ"})
+pagina = cliente.get(f"/sugestao?semana={semana}").text
+assert "2 sabores" in pagina and "<strong>38 un</strong>" in pagina and "<strong>37 un</strong>" in pagina  # 75 salvos
 cliente.get("/sair")
 assert cliente.get("/alertas").status_code == 302
 print("OK")

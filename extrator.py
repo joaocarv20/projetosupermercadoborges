@@ -15,6 +15,7 @@ import os
 import sys
 from datetime import date, datetime, timedelta
 
+import familias
 from base_local import abrir
 from config import DEPTOS_FORA, INICIO_HISTORICO
 from conferir_vendas import numero, reais
@@ -51,10 +52,8 @@ def carregar_produtos(ora, base, schema):
                    codsubcat = excluded.codsubcat, codbarra = excluded.codbarra, dtexclusao = excluded.dtexclusao""",
             [(cod, desc or f"PRODUTO {cod}", un, dep, sec, cat, sub, barra,
               dtex.date().isoformat() if dtex else None) for cod, desc, un, dep, sec, cat, sub, barra, dtex in linhas])
-        # Produto novo ganha uma família só dele; quem já tem família (ajustada à mão) não é mexido
-        base.execute("INSERT OR IGNORE INTO familias (nome) SELECT descricao FROM produtos WHERE familia_id IS NULL")
-        base.execute("UPDATE produtos SET familia_id = (SELECT id FROM familias WHERE nome = produtos.descricao) "
-                     "WHERE familia_id IS NULL")
+    # Produto novo entra na família da regra (tipo + marca + tamanho); quem já tem família não é mexido
+    familias.atribuir(base)
     print(f"  {len(linhas)} produtos")
 
 

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block titulo %}Famílias de produto{% endblock %}
+{% block conteudo %}
+
+<header class="cabecalho">
+  <h1>Famílias de produto</h1>
+  <p class="explicacao">Sabores e variações da mesma marca e tamanho são somados numa família só na sugestão.
+    A família é montada pela descrição; quando juntar ou separar errado, corrija aqui: digite o nome de outra família
+    (ou um nome novo, para separar) e clique em Mover. Só aparecem produtos que venderam no último ano.</p>
+</header>
+
+{% if erro %}<div class="faixa-alerta">{{ erro }}</div>{% endif %}
+{% if importados %}<div class="faixa-ok">Planilha importada: {{ importados }} produtos lidos.</div>{% endif %}
+
+<div class="filtros">
+  <form method="get" class="filtros-linha">
+    <label>Departamento
+      <select name="departamento">
+        {% for d in departamentos %}<option {{ 'selected' if d == departamento }}>{{ d }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Buscar em todos os departamentos
+      <input type="search" name="busca" value="{{ busca }}" placeholder="Ex.: palmolive">
+    </label>
+    <button type="submit" class="botao">Aplicar</button>
+  </form>
+  <!-- Ajuste em massa pelo Excel: baixa, muda a coluna "familia" e envia de volta -->
+  <a class="botao" href="{{ url_for('familias_planilha') }}">Baixar planilha</a>
+  <form method="post" enctype="multipart/form-data" class="filtros-linha">
+    <label>Enviar planilha corrigida <input type="file" name="planilha" accept=".csv" required></label>
+    <button type="submit" class="botao">Enviar</button>
+  </form>
+</div>
+
+<datalist id="nomes">{% for nome in grupos %}<option value="{{ nome }}">{% endfor %}</datalist>
+
+<table class="tabela">
+  <thead>
+    <tr><th>Família</th><th>Produto</th><th>Mover para a família</th></tr>
+  </thead>
+  <tbody>
+    {% for nome, produtos in grupos.items() %}
+      {% for codprod, descricao in produtos %}
+      <tr>
+        {% if loop.first %}<td rowspan="{{ produtos|length }}"><strong>{{ nome }}</strong>
+          <small class="qtd-sabores">{{ produtos|length }} produto{{ 's' if produtos|length > 1 }}</small></td>{% endif %}
+        <td>{{ descricao }} <small class="qtd-sabores">{{ codprod }}</small></td>
+        <td>
+          <form method="post" class="mover">
+            <input type="hidden" name="codprod" value="{{ codprod }}">
+            <input name="familia" list="nomes" value="{{ nome }}" required aria-label="Família de {{ descricao }}">
+            <button type="submit" class="botao pequeno">Mover</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    {% else %}
+    <tr><td colspan="3" class="vazio">Nenhum produto encontrado com esses filtros.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

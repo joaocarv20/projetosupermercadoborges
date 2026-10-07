@@ -14,14 +14,17 @@ import unicodedata
 from datetime import date, timedelta
 from functools import lru_cache
 
-from flask import Flask, abort, redirect, render_template, request, session, url_for
+from flask import Flask, Response, abort, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
+import acompanhamento as acomp
 import alertas as lista_alerta
+import familias as fam
 import base_local
 import motor
 from base_local import abrir
 from calendario import feriado, tipo_semana, tipos_do_dia
+from config import ACERTO_MARGEM, ACERTO_UNIDADES
 
 app = Flask(__name__)
 # Sem SECRET_KEY no ambiente, cada reinício do servidor pede login de novo
@@ -178,8 +181,11 @@ def sugestao():
             continue
         kg = l["unidade"] == "KG"
         final = salvas.get(l["familia_id"], l["sugestao"])
+        # Quanto comprar de cada sabor: a quantidade final repartida pela venda de cada um
+        comprar = motor.dividir(final, [p["qtd"] for p in l["produtos"]], l["unidade"])
         familias.append({
             **l, "un": "kg" if kg else "un", "casas": 1 if kg else 0,
+            "produtos": [{**p, "comprar": c} for p, c in zip(l["produtos"], comprar)],
             "qtd_final": int(final) if final == int(final) else final,  # 75 em vez de 75.0 no campo
             # Se um produto tem 80% ou mais da venda da família, provavelmente o caixa registra tudo nele
             "concentrado": len(l["produtos"]) > 1 and max(p["pct"] for p in l["produtos"]) >= 80,
@@ -203,6 +209,73 @@ def alertas():
             abort(400)
         return redirect(url_for("alertas"))
     return render_template("alertas.html", alertas=com_cache(lista_alerta.listar), status=STATUS_ALERTA)
+
+
+@app.route("/familias", methods=["GET", "POST"])
+def familias():
+    base, erro = abrir(), None
+    if request.method == "POST" and "planilha" in request.files:
+        try:
+            lidos = fam.importar(base, request.files["planilha"].read())
+            return redirect(url_for("familias", importados=lidos))
+        except ValueError as e:  # mostra o erro na própria tela
+            erro = str(e)
+    elif request.method == "POST":
+        try:
+            with base:
+                fam.mover(base, [(int(request.form["codprod"]), request.form["familia"])])
+        except (KeyError, ValueError):
+            abort(400)
+        return redirect(request.full_path)
+
+    # Um departamento por vez; a busca procura em todos
+    produtos = fam.ativos(base)
+    departamentos = sorted({d for _, _, d, _ in produtos})
+    departamento = request.args.get("departamento", "")
+    if departamento not in departamentos:
+        departamento = departamentos[0] if departamentos else ""
+    busca = request.args.get("busca", "").strip()
+    grupos = {}
+    for codprod, descricao, depto, familia in produtos:
+        if (sem_acento(busca) in sem_acento(f"{descricao} {familia}")) if busca else depto == departamento:
+            grupos.setdefault(familia, []).append((codprod, descricao))
+    return render_template("familias.html", grupos=grupos, departamentos=departamentos, departamento=departamento,
+                           busca=busca, erro=erro, importados=request.args.get("importados"))
+
+
+@app.route("/familias.csv")
+def familias_planilha():
+    return Response(fam.exportar(abrir()), mimetype="text/csv",
+                    headers={"Content-Disposition": f"attachment; filename=familias-{date.today()}.csv"})
+
+
+@app.route("/acompanhamento")
+def acompanhamento():
+    base = abrir()
+    semanas = acomp.semanas_fechadas(base)
+    try:
+        semana = date.fromisoformat(request.args.get("semana", ""))
+    except ValueError:
+        semana = None
+    if semana not in semanas:
+        semana = semanas[0] if semanas else None
+    linhas = acomp.comparar(base, semana) if semana else []
+
+    # Mesmo filtro da sugestão: um departamento por vez, a busca procura em todos
+    departamentos = sorted({l["departamento"] for l in linhas})
+    departamento = request.args.get("departamento", "")
+    if departamento not in departamentos:
+        departamento = departamentos[0] if departamentos else ""
+    busca = request.args.get("busca", "").strip()
+    familias = [{**l, "un": "kg" if l["unidade"] == "KG" else "un", "casas": 1 if l["unidade"] == "KG" else 0}
+                for l in linhas
+                if (sem_acento(busca) in sem_acento(l["nome"]) if busca else l["departamento"] == departamento)]
+
+    return render_template(
+        "acompanhamento.html", semana=semana, rotulo=semana and rotulo_semana(semana),
+        tipo=semana and TIPOS_SEMANA[tipo_semana(semana)], semanas=[(s, rotulo_semana(s)) for s in semanas],
+        resumo=acomp.resumo(linhas), deptos=acomp.por_departamento(linhas), familias=familias,
+        departamentos=departamentos, departamento=departamento, busca=busca, margem=ACERTO_MARGEM * 100, unidades=ACERTO_UNIDADES)
 
 
 def vendas_por_departamento(base, inicio, fim):

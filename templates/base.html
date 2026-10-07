@@ -16,6 +16,8 @@
     {% set atual = request.endpoint %}
     <a href="{{ url_for('sugestao') }}" class="{{ 'ativo' if atual == 'sugestao' }}">Sugestão de compra</a>
     <a href="{{ url_for('alertas') }}" class="{{ 'ativo' if atual == 'alertas' }}">Lista de alerta <span class="contador">{{ total_alertas }}</span></a>
+    <a href="{{ url_for('familias') }}" class="{{ 'ativo' if atual == 'familias' }}">Famílias de produto</a>
+    <a href="{{ url_for('acompanhamento') }}" class="{{ 'ativo' if atual == 'acompanhamento' }}">Acompanhamento</a>
     <a href="{{ url_for('analise') }}" class="{{ 'ativo' if atual == 'analise' }}">Análise de vendas</a>
     <a href="{{ url_for('calendario') }}" class="{{ 'ativo' if atual == 'calendario' }}">Calendário de dias quentes
       <span class="fase2">Fase 2 – em breve</span></a>

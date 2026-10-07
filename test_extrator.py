@@ -56,7 +56,7 @@ extrator.main()
 assert sql("SELECT COUNT(*), SUM(valor) FROM vendas_diarias") == [(3, 180.0)]
 assert sql("SELECT codepto, entra FROM departamentos ORDER BY 1") == [("102", 1), ("200", 0)]
 assert sql("SELECT COUNT(*) FROM produtos WHERE familia_id IS NULL") == [(0,)]
-assert sql("SELECT nome FROM familias ORDER BY id") == [("DETERGENTE YPE LIMAO",), ("PRODUTO 2",)]  # descrição vazia não quebra
+assert sql("SELECT nome FROM familias ORDER BY id") == [("DETERGENTE YPE",), ("PRODUTO 2",)]  # tipo + marca; descrição vazia não quebra
 
 # Comprador junta o produto 2 na família do 1; nova carga não pode desfazer isso
 con = sqlite3.connect(base_local.ARQUIVO_BASE)

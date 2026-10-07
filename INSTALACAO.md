@@ -29,6 +29,10 @@ Rode fora do horário de funcionamento (à noite ou no domingo): copia todo o hi
 
 Confira um total de período com o relatório do Cefas antes de seguir (`conferir_vendas.py`).
 
+O extrator já junta os sabores em famílias (tipo + marca + tamanho). Antes da primeira segunda de uso, revise as
+famílias com o Paulo na tela **Famílias de produto** (ou pela planilha): mudar famílias depois que ele começa a salvar
+sugestões desencontra o histórico do Acompanhamento.
+
 ## 3. Agendar as tarefas
 
 Servidor das telas, ao ligar o computador, e rotina noturna (vendas de ontem + backup) às 3h:

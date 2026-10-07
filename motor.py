@@ -51,6 +51,22 @@ def arredondar(qtd, unidade):
     return round(qtd, 1) if unidade == "KG" else math.ceil(qtd)
 
 
+def dividir(total, pesos, unidade):
+    """Reparte a compra da família entre os sabores, na proporção da venda de cada um.
+    Unidades: inteiros que somam exatamente o total (as sobras vão para quem ficou mais perto da próxima unidade)."""
+    soma = sum(pesos)
+    if not soma:
+        return [0] * len(pesos)
+    exatos = [total * p / soma for p in pesos]
+    if unidade == "KG":
+        return [round(e, 1) for e in exatos]
+    partes = [math.floor(round(e, 6)) for e in exatos]
+    sobra = round(total) - sum(partes)
+    for i in sorted(range(len(pesos)), key=lambda i: partes[i] - exatos[i])[:max(sobra, 0)]:
+        partes[i] += 1
+    return partes
+
+
 def gerar(base, segunda):
     """Lista de famílias com a sugestão para a semana que começa em `segunda` (vazia se não há histórico)."""
     semanas = semanas_equivalentes(base, segunda)

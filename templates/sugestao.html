@@ -9,7 +9,8 @@
     <span class="etiqueta {{ tipo.cor }}">{{ tipo.nome }}</span>
   </p>
   {% if obs %}<p class="obs">Feriado: {{ obs }}</p>{% endif %}
-  <p class="explicacao">Mediana das últimas 6 semanas do mesmo tipo. A sugestão está em unidades ou quilos: converta para caixas na hora de pedir.</p>
+  <p class="explicacao">Mediana das últimas 6 semanas do mesmo tipo. A sugestão está em unidades ou quilos: converta para caixas na hora de pedir.
+    Clique numa família para ver quanto comprar de cada sabor (sai na impressão).</p>
 </header>
 
 <!-- Filtros: enviados pela URL (GET), sem JavaScript -->
@@ -62,9 +63,10 @@
               {% if f.concentrado %}<span class="etiqueta laranja pequena">verificar registro</span>{% endif %}
             </summary>
             <table class="sabores">
-              <tr><th>Sabor / variação</th><th class="num">Venda registrada</th><th class="num">% da família</th></tr>
+              <tr><th>Sabor / variação</th><th class="num">Comprar</th><th class="num">Venda registrada</th><th class="num">% da família</th></tr>
               {% for v in f.produtos %}
-              <tr><td>{{ v.descricao }}</td><td class="num">{{ v.qtd|br(f.casas) }} {{ f.un }}</td><td class="num">{{ v.pct|br(1) }}%</td></tr>
+              <tr><td>{{ v.descricao }}</td><td class="num"><strong>{{ v.comprar|br(f.casas) }} {{ f.un }}</strong></td>
+                <td class="num">{{ v.qtd|br(f.casas) }} {{ f.un }}</td><td class="num">{{ v.pct|br(1) }}%</td></tr>
               {% endfor %}
             </table>
             {% if f.concentrado %}
@@ -73,7 +75,7 @@
             {% endif %}
           </details>
         {% else %}
-          {{ f.nome }}
+          {{ f.produtos[0].descricao if f.produtos else f.nome }}
         {% endif %}
       </td>
       <td>{{ f.departamento }}</td>
@@ -95,5 +97,9 @@
 </table>
 </form>
 
+<script>
+  // Na impressão, abre todas as famílias para sair a quantidade de cada sabor
+  addEventListener("beforeprint", () => document.querySelectorAll("details").forEach(d => d.open = true));
+</script>
 <p class="so-impressao assinatura">Comprador: ______________________________ &nbsp;&nbsp; Data: ____/____/______</p>
 {% endblock %}
