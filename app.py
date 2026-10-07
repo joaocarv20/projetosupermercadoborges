@@ -1,7 +1,8 @@
 """
 Compras Inteligentes – Supermercado Borges. Lê a base local (SQLite) que o extrator preenche.
 
-Para rodar:  python app.py   e abra  http://127.0.0.1:5000
+Para testar:  python app.py   e abra  http://127.0.0.1:5000
+No mercado:   python app.py servir   (waitress, aberto na rede: http://IP-DO-COMPUTADOR:8000)
 Criar ou trocar a senha de um usuário:  python app.py usuario paulo
 """
 import calendar
@@ -292,5 +293,15 @@ def criar_usuario(usuario):
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "usuario":
         criar_usuario(sys.argv[2])
+    elif sys.argv[1:] == ["servir"]:
+        from waitress import serve
+        # Chave guardada num arquivo: reiniciar o computador não derruba o login de quem está usando
+        arquivo = base_local.ARQUIVO_BASE.parent / "chave_sessao.txt"
+        if not arquivo.exists():
+            arquivo.parent.mkdir(exist_ok=True)
+            arquivo.write_text(secrets.token_hex())
+        app.secret_key = os.environ.get("SECRET_KEY") or arquivo.read_text()
+        print("Sistema no ar: http://<IP deste computador>:8000  (Ctrl+C para parar)")
+        serve(app, host="0.0.0.0", port=8000)
     else:
         app.run(debug=True)

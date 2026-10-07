@@ -14,3 +14,7 @@ conferencia_vendas.md
 # Base local com as vendas do mercado (gerada pelo extrator.py)
 dados/
 departamentos.md
+
+# Backups diários da base local (rotina_noturna.py) e log da rotina
+backups/
+logs/
