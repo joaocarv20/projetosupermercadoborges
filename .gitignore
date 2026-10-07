@@ -18,3 +18,6 @@ departamentos.md
 # Backups diários da base local (rotina_noturna.py) e log da rotina
 backups/
 logs/
+
+# Documentação exportada em Word (a original fica no claude.ai)
+Documentação do Sistema – Supermercado Borges.docx

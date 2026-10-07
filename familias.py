@@ -65,7 +65,8 @@ def ativos(base):
     return base.execute(
         """SELECT p.codprod, p.descricao, d.nome, f.nome FROM produtos p
            JOIN departamentos d ON d.codepto = p.codepto JOIN familias f ON f.id = p.familia_id
-           WHERE d.entra = 1 AND EXISTS (SELECT 1 FROM vendas_diarias v WHERE v.codprod = p.codprod AND v.data >= ?)
+           -- IN numa leitura só: vendas_diarias é ordenada por data, buscar produto a produto varre a tabela toda
+           WHERE d.entra = 1 AND p.codprod IN (SELECT codprod FROM vendas_diarias WHERE data >= ?)
            ORDER BY d.nome, f.nome, p.descricao""", (desde,)).fetchall()
 
 
