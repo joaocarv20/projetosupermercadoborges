@@ -1,10 +1,10 @@
-"""Teste do backup da rotina noturna.  Rode:  python test_rotina.py"""
+"""Teste do backup da rotina noturna.  Rode:  python -m testes.test_rotina"""
 import sqlite3
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 
-import base_local
+from sistema import base_local
 import rotina_noturna
 
 pasta = Path(tempfile.mkdtemp())

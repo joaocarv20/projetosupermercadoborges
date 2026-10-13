@@ -1,11 +1,11 @@
-"""Teste do motor com vendas inventadas, em que a resposta certa é conhecida.  Rode:  python test_motor.py"""
+"""Teste do motor com vendas inventadas, em que a resposta certa é conhecida.  Rode:  python -m testes.test_motor"""
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 
-import base_local
-import motor
-from calendario import tipo_semana
+from sistema import base_local
+from sistema import motor
+from sistema.calendario import tipo_semana
 
 # --- tipo de cada semana (segunda a domingo) ---
 assert tipo_semana(date(2026, 10, 5)) == "salario"      # dias 5, 6 e 7 (5º dia útil) + ...

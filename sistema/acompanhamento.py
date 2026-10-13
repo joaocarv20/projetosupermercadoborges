@@ -5,13 +5,13 @@ o que o comprador salvou e o que realmente vendeu.
 O motor não usa estoque, então a sugestão é uma previsão de venda: o acerto do sistema é medido
 contra a venda real. A quantidade do comprador mostra onde ele discorda (pode ser estoque, promoção...).
 
-Como rodar:  python acompanhamento.py 2026-10-12   (a segunda-feira da semana)
+Como rodar:  python -m sistema.acompanhamento 2026-10-12   (a segunda-feira da semana)
 """
 import sys
 from datetime import date, timedelta
 from statistics import median
 
-from base_local import abrir
+from sistema.base_local import abrir
 from config import ACERTO_MARGEM, ACERTO_UNIDADES
 
 

@@ -5,14 +5,14 @@ quantos anos de venda existem na MOVIMENTACAO. Só totais, nenhum dado de client
 Serve para decidir quais departamentos ficam de fora (padaria, açougue, hortifrúti)
 e para confirmar quanto histórico existe.
 
-Como rodar:  python listar_departamentos.py
+Como rodar:  python -m ferramentas.listar_departamentos
 Saída:       departamentos.md
 """
 import os
 from datetime import datetime
 
-from conferir_vendas import numero, reais
-from explorar_banco import PASTA, carregar_env, conectar, consultar, tabela_md, texto
+from ferramentas.explorar_banco import PASTA, tabela_md, texto
+from sistema.oracle import carregar_env, conectar, consultar, reais
 
 VENDA = "m.operacao = 'S' AND NVL(m.status, '-') <> 'C'"  # mesmo filtro validado com o Cefas
 

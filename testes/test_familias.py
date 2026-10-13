@@ -1,13 +1,13 @@
-"""Teste das famílias (regra, ajuste manual, planilha) e da divisão por sabor.  Rode:  python test_familias.py"""
+"""Teste das famílias (regra, ajuste manual, planilha) e da divisão por sabor.  Rode:  python -m testes.test_familias"""
 import tempfile
 from datetime import date
 from pathlib import Path
 
-import base_local
-import motor
+from sistema import base_local
+from sistema import motor
 
 base_local.ARQUIVO_BASE = Path(tempfile.mkdtemp()) / "teste.db"
-import familias as fam  # noqa: E402
+from sistema import familias as fam  # noqa: E402
 
 # Regra: tipo + marca + tamanho
 for descricao, esperado in [

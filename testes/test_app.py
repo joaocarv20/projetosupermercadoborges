@@ -1,4 +1,4 @@
-"""Teste das telas com uma base inventada (login, sugestão, alerta e análise).  Rode:  python test_app.py"""
+"""Teste das telas com uma base inventada (login, sugestão, alerta e análise).  Rode:  python -m testes.test_app"""
 import io
 import tempfile
 from datetime import date, timedelta
@@ -6,8 +6,8 @@ from pathlib import Path
 
 from werkzeug.security import generate_password_hash
 
-import base_local
-import motor
+from sistema import base_local
+from sistema import motor
 
 base_local.ARQUIVO_BASE = Path(tempfile.mkdtemp()) / "teste.db"
 from app import app  # noqa: E402  (depois de trocar a base)

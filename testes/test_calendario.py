@@ -1,11 +1,11 @@
-"""Teste do calendário.  Rode:  python test_calendario.py"""
+"""Teste do calendário.  Rode:  python -m testes.test_calendario"""
 import sqlite3
 import tempfile
 from datetime import date
 from pathlib import Path
 
-import base_local
-import calendario as c
+from sistema import base_local
+from sistema import calendario as c
 
 # Outubro/2026: 5º dia útil = 07/10; último dia útil = 30/10; 12/10 é feriado (Aparecida)
 assert c.tipos_do_dia(date(2026, 10, 1)) == ["salario", "recarga"]

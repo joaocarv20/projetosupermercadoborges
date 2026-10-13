@@ -2,7 +2,7 @@
 Calendário comercial: diz se cada dia é de salário, recarga do cartão alimentação, semana fraca ou feriado.
 Usado pelo motor de sugestão (para achar semanas equivalentes) e pela tela de dias quentes.
 
-Para gravar na base local (tabela calendario):  python calendario.py
+Para gravar na base local (tabela calendario):  python -m sistema.calendario
 """
 import calendar
 from datetime import date, timedelta
@@ -10,7 +10,7 @@ from functools import lru_cache
 
 import holidays
 
-from base_local import abrir
+from sistema.base_local import abrir
 from config import INICIO_HISTORICO
 
 # Feriados municipais de Anápolis (mês, dia): nome

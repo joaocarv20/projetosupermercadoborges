@@ -12,20 +12,21 @@ Segurança:
     que não comece com SELECT. Nenhum commit é feito.
   - Cada consulta tem tempo máximo (ORA_TIMEOUT_SEG no .env, padrão 60 s).
 
-Como rodar:  python explorar_banco.py
+Como rodar:  python -m ferramentas.explorar_banco
 Só as colunas de algumas tabelas (gera mapa_tabelas.md):
-             python explorar_banco.py JP.PRODUTO JP.DEPTO SECAO
+             python -m ferramentas.explorar_banco JP.PRODUTO JP.DEPTO SECAO
              (sem o "SCHEMA." procura a tabela em todos os schemas do ERP)
 """
 import os
 import sys
-import threading
 from datetime import datetime
 from pathlib import Path
 
 import oracledb
 
-PASTA = Path(__file__).parent
+from sistema.oracle import carregar_env, conectar, consultar
+
+PASTA = Path(__file__).parent.parent / "docs"  # onde os relatórios são gravados
 ARQUIVO_SAIDA = PASTA / "mapa_banco.md"
 
 # Schemas internos do Oracle, que não interessam (o ERP fica nos outros)
@@ -52,75 +53,6 @@ MAX_CANDIDATAS_POR_TEMA = 40  # as mais prováveis primeiro; o resto é cortado
 # ---------------------------------------------------------------------------
 # Configuração e conexão
 # ---------------------------------------------------------------------------
-def carregar_env():
-    """Lê o arquivo .env (linhas CHAVE=valor) para as variáveis de ambiente."""
-    arquivo = PASTA / ".env"
-    if not arquivo.exists():
-        sys.exit("Arquivo .env não encontrado. Copie o .env.example para .env e preencha os dados.")
-    for linha in arquivo.read_text(encoding="utf-8").splitlines():
-        linha = linha.strip()
-        if linha and not linha.startswith("#") and "=" in linha:
-            chave, valor = linha.split("=", 1)
-            os.environ.setdefault(chave.strip(), valor.strip().strip('"').strip("'"))
-    faltando = [c for c in ("ORA_USER", "ORA_PASS", "ORA_DSN") if not os.environ.get(c)]
-    if faltando:
-        sys.exit(f"Preencha no .env: {', '.join(faltando)}")
-
-
-def conectar():
-    """Tenta o modo thin (sem instalar nada). Se o banco exigir, usa o modo thick."""
-    dados = dict(user=os.environ["ORA_USER"], password=os.environ["ORA_PASS"],
-                 dsn=os.environ["ORA_DSN"], tcp_connect_timeout=20)
-    try:
-        conexao = oracledb.connect(**dados)
-        modo = "thin"
-    except oracledb.Error as erro:
-        # DPY-3010: versão do Oracle antiga demais para o thin (ex.: 11g)
-        # DPY-3015: senha em formato antigo (10G)   DPY-3001: recurso só do thick
-        if not any(codigo in str(erro) for codigo in ("DPY-3010", "DPY-3015", "DPY-3001")):
-            raise
-        print("\nO modo thin não funciona com este banco:")
-        print(f"  {erro}")
-        print("É preciso o Oracle Instant Client (modo thick).")
-        pasta_client = os.environ.get("ORA_CLIENT_DIR")
-        if not pasta_client:
-            sys.exit("\nBaixe o Oracle Instant Client em\n"
-                     "  https://www.oracle.com/database/technologies/instant-client/downloads.html\n"
-                     "descompacte numa pasta e informe o caminho em ORA_CLIENT_DIR no .env.")
-        print(f"Ativando o modo thick com o Instant Client em: {pasta_client}")
-        # Obs.: no Linux o caminho deve estar também no LD_LIBRARY_PATH
-        try:
-            oracledb.init_oracle_client(lib_dir=pasta_client)
-        except oracledb.Error as erro_client:
-            sys.exit(f"Não consegui carregar o Instant Client em {pasta_client}:\n  {erro_client}")
-        dados.pop("tcp_connect_timeout")  # parâmetro só existe no modo thin
-        conexao = oracledb.connect(**dados)
-        modo = "thick"
-
-    return conexao, modo
-
-
-def consultar(conexao, sql, parametros=None):
-    """Executa uma consulta e devolve as linhas. Recusa tudo que não for SELECT."""
-    if not sql.lstrip().upper().startswith("SELECT"):
-        raise RuntimeError("Bloqueado: este script só executa SELECT.")
-    # Tempo máximo: um cronômetro cancela a consulta se passar de ORA_TIMEOUT_SEG.
-    # (call_timeout do oracledb não serve: no modo thick exige Instant Client 18+,
-    #  e um Oracle 10g só aceita Instant Client 11.2 ou 12.1)
-    cronometro = threading.Timer(int(os.environ.get("ORA_TIMEOUT_SEG", "60")), conexao.cancel)
-    cronometro.start()
-    try:
-        with conexao.cursor() as cursor:
-            cursor.execute(sql, parametros or {})
-            return cursor.fetchall()
-    except oracledb.DatabaseError as erro:
-        if "ORA-01013" in str(erro):  # cancelada pelo cronômetro
-            raise RuntimeError(f"Consulta cancelada: passou de {os.environ.get('ORA_TIMEOUT_SEG', '60')} segundos.") from erro
-        raise
-    finally:
-        cronometro.cancel()
-
-
 def escolher_dicionario(conexao):
     """Usa as views DBA_* (veem o banco todo) se houver permissão; senão ALL_*."""
     try:
@@ -335,7 +267,7 @@ def main():
     dic = escolher_dicionario(conexao)
     print(f"Conectado (modo {modo}). Usando as views {dic}_*.")
 
-    # Modo "só algumas tabelas": python explorar_banco.py JP.PRODUTO JP.DEPTO ...
+    # Modo "só algumas tabelas": python -m ferramentas.explorar_banco JP.PRODUTO JP.DEPTO ...
     if len(sys.argv) > 1:
         tabelas = buscar_tabelas_pedidas(conexao, dic, sys.argv[1:])
         saida = PASTA / "mapa_tabelas.md"

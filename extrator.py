@@ -15,11 +15,10 @@ import os
 import sys
 from datetime import date, datetime, timedelta
 
-import familias
-from base_local import abrir
+from sistema import familias
+from sistema.base_local import abrir
 from config import DEPTOS_FORA, INICIO_HISTORICO
-from conferir_vendas import numero, reais
-from explorar_banco import carregar_env, conectar, consultar
+from sistema.oracle import carregar_env, conectar, consultar, numero, reais
 
 REPROCESSAR_DIAS = 3  # a carga diária refaz os últimos dias, para pegar cancelamentos feitos depois
 

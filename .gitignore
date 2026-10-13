@@ -9,15 +9,17 @@ __pycache__/
 .DS_Store
 
 # Resultado do conferir_vendas.py (totais de venda, refeito a cada execução)
-conferencia_vendas.md
+docs/conferencia_vendas.md
 
 # Base local com as vendas do mercado (gerada pelo extrator.py)
 dados/
-departamentos.md
+
+# Resultado do listar_departamentos.py
+docs/departamentos.md
 
 # Backups diários da base local (rotina_noturna.py) e log da rotina
 backups/
 logs/
 
 # Documentação exportada em Word (a original fica no claude.ai)
-Documentação do Sistema – Supermercado Borges.docx
+docs/Documentação do Sistema – Supermercado Borges.docx

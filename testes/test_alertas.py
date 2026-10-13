@@ -1,10 +1,10 @@
-"""Teste da lista de alerta com vendas inventadas.  Rode:  python test_alertas.py"""
+"""Teste da lista de alerta com vendas inventadas.  Rode:  python -m testes.test_alertas"""
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 
-import alertas
-import base_local
+from sistema import alertas
+from sistema import base_local
 
 FIM = date(2026, 9, 30)  # último dia com venda na base
 base_local.ARQUIVO_BASE = Path(tempfile.mkdtemp()) / "teste.db"

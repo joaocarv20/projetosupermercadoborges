@@ -27,7 +27,7 @@ Rode fora do horário de funcionamento (à noite ou no domingo): copia todo o hi
 .venv\Scripts\python app.py usuario paulo
 ```
 
-Confira um total de período com o relatório do Cefas antes de seguir (`conferir_vendas.py`).
+Confira um total de período com o relatório do Cefas antes de seguir (`python -m ferramentas.conferir_vendas`).
 
 O extrator já junta os sabores em famílias (tipo + marca + tamanho). Antes da primeira segunda de uso, revise as
 famílias com o Paulo na tela **Famílias de produto** (ou pela planilha): mudar famílias depois que ele começa a salvar

@@ -9,7 +9,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-import base_local
+from sistema import base_local
 import extrator
 
 PASTA_BACKUP = Path(__file__).parent / "backups"

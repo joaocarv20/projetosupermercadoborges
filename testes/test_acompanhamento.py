@@ -1,12 +1,12 @@
-"""Teste do acompanhamento (sugerido x comprador x vendeu).  Rode:  python test_acompanhamento.py"""
+"""Teste do acompanhamento (sugerido x comprador x vendeu).  Rode:  python -m testes.test_acompanhamento"""
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 
-import base_local
+from sistema import base_local
 
 base_local.ARQUIVO_BASE = Path(tempfile.mkdtemp()) / "teste.db"
-import acompanhamento as acomp  # noqa: E402
+from sistema import acompanhamento as acomp  # noqa: E402
 
 base = base_local.abrir()
 base.execute("INSERT INTO departamentos VALUES ('102', 'MERCEARIA', 1)")

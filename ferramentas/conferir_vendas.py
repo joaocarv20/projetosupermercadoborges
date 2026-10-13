@@ -3,40 +3,26 @@ Conferência das vendas de um período, para comparar com o relatório do ERP.
 
 Lê só TOTAIS (somas por dia, por filial e por tipo de operação). Nenhuma linha
 individual, nenhum dado de cliente. Usa a mesma conexão e as mesmas travas do
-explorar_banco.py (só SELECT, tempo máximo por consulta).
+sistema/oracle.py (só SELECT, tempo máximo por consulta).
 
 Precisa de: GRANT SELECT ON JP.MOVIMENTACAO e JP.NFSAID para o usuário do .env.
 
-Como rodar:  python conferir_vendas.py 2026-08-01 2026-08-07
+Como rodar:  python -m ferramentas.conferir_vendas 2026-08-01 2026-08-07
 Saída:       conferencia_vendas.md
 """
 import os
 import sys
 from datetime import date, datetime
 
-from explorar_banco import PASTA, carregar_env, conectar, consultar, tabela_md, texto
+from ferramentas.explorar_banco import PASTA, tabela_md, texto
+from sistema.oracle import carregar_env, conectar, consultar, numero, reais
 
 
 DIAS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
 
 
-def reais(valor):
-    """339123.4 -> 'R$ 339.123,40'."""
-    if valor is None:
-        return ""
-    return "R$ " + f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def numero(valor):
-    """Quantidades: sem casas se for inteiro, senão 3 casas (produtos pesados)."""
-    if valor is None:
-        return ""
-    casas = 0 if float(valor).is_integer() else 3
-    return f"{valor:,.{casas}f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
 def main():
-    exemplo = "Ex.: python conferir_vendas.py 2026-08-01 2026-08-07"
+    exemplo = "Ex.: python -m ferramentas.conferir_vendas 2026-08-01 2026-08-07"
     if len(sys.argv) < 3:
         sys.exit("Informe a data inicial e a final. " + exemplo)
     try:

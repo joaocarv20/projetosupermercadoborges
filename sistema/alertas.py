@@ -5,11 +5,11 @@ Quando o produto acaba na prateleira ele some das vendas e, com isso, da sugest�
 A lista é calculada na hora a partir das vendas do último ano. A tabela alertas guarda só o que o comprador
 marcou (verificar, comprado, descontinuado), e a marca perde o efeito quando o produto volta a vender.
 
-Como rodar:  python alertas.py
+Como rodar:  python -m sistema.alertas
 """
 from datetime import date, timedelta
 
-from base_local import abrir
+from sistema.base_local import abrir
 from config import ALERTA_DIAS_SEM_VENDA, ALERTA_FREQUENCIA
 
 STATUS = ("verificar", "comprado", "descontinuado")

@@ -1,4 +1,4 @@
-"""Teste do extrator com um Oracle de mentira e uma base SQLite temporária.  Rode:  python test_extrator.py"""
+"""Teste do extrator com um Oracle de mentira e uma base SQLite temporária.  Rode:  python -m testes.test_extrator"""
 import os
 import sqlite3
 import sys
@@ -6,7 +6,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-import base_local
+from sistema import base_local
 import extrator
 from config import DEPTOS_FORA
 

@@ -7,9 +7,9 @@ O Cefas não preenche subcategoria, então a família sai da descrição: tipo +
 O que a regra errar se corrige na tela Famílias ou pela planilha (exportar, editar no Excel, importar).
 O extrator só dá família a produto novo: o que foi ajustado à mão não é desfeito.
 
-Como rodar:  python familias.py agrupar              refaz TODAS as famílias pela regra (desfaz ajustes manuais)
-             python familias.py exportar familias.csv
-             python familias.py importar familias.csv
+Como rodar:  python -m sistema.familias agrupar              refaz TODAS as famílias pela regra (desfaz ajustes manuais)
+             python -m sistema.familias exportar familias.csv
+             python -m sistema.familias importar familias.csv
 """
 import csv
 import io
@@ -17,7 +17,7 @@ import re
 import sys
 from datetime import date, timedelta
 
-from base_local import abrir
+from sistema.base_local import abrir
 from config import QUALIFICADORES
 
 # 85G, 7,5ML, 1KG, 2L, 96FL, 3PCS, 4X30M, 8X1...
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     elif comando == "exportar" and len(sys.argv) == 3:
         with open(sys.argv[2], "w", encoding="utf-8", newline="") as f:
             f.write(exportar(base))
-        print(f"Planilha gravada em {sys.argv[2]}. Edite a coluna 'familia' e rode: python familias.py importar {sys.argv[2]}")
+        print(f"Planilha gravada em {sys.argv[2]}. Edite a coluna 'familia' e rode: python -m sistema.familias importar {sys.argv[2]}")
     elif comando == "importar" and len(sys.argv) == 3:
         try:
             print(f"{importar(base, open(sys.argv[2], 'rb').read())} produtos lidos da planilha.")

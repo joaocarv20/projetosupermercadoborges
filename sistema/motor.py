@@ -5,16 +5,16 @@ Para a semana-alvo (segunda a domingo), pega as últimas 6 semanas do MESMO TIPO
 meio do mês, fraca ou feriado), soma as vendas de cada família em cada uma e sugere a mediana.
 A sugestão fica na unidade do produto (unidades ou kg), sem arredondar para caixa: o comprador converte.
 
-Como rodar:  python motor.py              sugestão da próxima segunda-feira (a compra de hoje)
-             python motor.py 2026-10-12   sugestão de outra semana (a data precisa ser uma segunda)
+Como rodar:  python -m sistema.motor              sugestão da próxima segunda-feira (a compra de hoje)
+             python -m sistema.motor 2026-10-12   sugestão de outra semana (a data precisa ser uma segunda)
 """
 import math
 import sys
 from datetime import date, timedelta
 from statistics import median
 
-from base_local import abrir
-from calendario import tipo_semana
+from sistema.base_local import abrir
+from sistema.calendario import tipo_semana
 from config import SEMANAS_EQUIVALENTES
 
 

@@ -18,13 +18,13 @@ from functools import lru_cache
 from flask import Flask, Response, abort, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-import acompanhamento as acomp
-import alertas as lista_alerta
-import familias as fam
-import base_local
-import motor
-from base_local import abrir
-from calendario import feriado, tipo_semana, tipos_do_dia
+from sistema import acompanhamento as acomp
+from sistema import alertas as lista_alerta
+from sistema import familias as fam
+from sistema import base_local
+from sistema import motor
+from sistema.base_local import abrir
+from sistema.calendario import feriado, tipo_semana, tipos_do_dia
 from config import ACERTO_MARGEM, ACERTO_UNIDADES
 
 app = Flask(__name__)
