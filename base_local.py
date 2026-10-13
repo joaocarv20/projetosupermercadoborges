@@ -32,6 +32,12 @@ CREATE TABLE IF NOT EXISTS sugestoes (                               -- o que o 
 CREATE TABLE IF NOT EXISTS alertas (                                 -- status: verificar, comprado, descontinuado
     codprod INTEGER PRIMARY KEY, status TEXT NOT NULL, atualizado_em TEXT
 );
+CREATE TABLE IF NOT EXISTS fornecedores (                            -- cadastrados à mão na tela Fornecedores
+    id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL UNIQUE, contato TEXT, telefone TEXT, email TEXT
+);
+CREATE TABLE IF NOT EXISTS fornecedor_departamentos (                -- quais departamentos cada fornecedor atende
+    fornecedor_id INTEGER NOT NULL, codepto TEXT NOT NULL, PRIMARY KEY (fornecedor_id, codepto)
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS usuarios (usuario TEXT PRIMARY KEY, senha_hash TEXT NOT NULL);
 """
 

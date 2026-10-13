@@ -220,3 +220,11 @@ summary:hover { color: var(--destaque); }
 .faixa-ok { background: #e8f5e9; border: 2px solid var(--verde); border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1.2rem; }
 .mover { display: flex; gap: .4rem; }
 .mover input { flex: 1; min-width: 12rem; padding: .3rem .5rem; border: 1px solid #9aa5b1; border-radius: 6px; }
+
+/* ---------- Fornecedores ---------- */
+.deptos {
+  flex-basis: 100%; border: none; padding: 0; margin: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .3rem 1rem;
+}
+.deptos legend { font-size: .9rem; font-weight: 600; margin-bottom: .4rem; }
+.filtros .deptos label { flex-direction: row; align-items: center; gap: .5rem; font-weight: 400; min-height: 36px; }

@@ -9,6 +9,7 @@ import calendar
 import getpass
 import os
 import secrets
+import sqlite3
 import sys
 import unicodedata
 from datetime import date, timedelta
@@ -247,6 +248,55 @@ def familias():
 def familias_planilha():
     return Response(fam.exportar(abrir()), mimetype="text/csv",
                     headers={"Content-Disposition": f"attachment; filename=familias-{date.today()}.csv"})
+
+
+@app.route("/fornecedores", methods=["GET", "POST"])
+def fornecedores():
+    base, erro = abrir(), None
+    if request.method == "POST" and "excluir" in request.form:
+        with base:
+            base.execute("DELETE FROM fornecedor_departamentos WHERE fornecedor_id = ?", (request.form["excluir"],))
+            base.execute("DELETE FROM fornecedores WHERE id = ?", (request.form["excluir"],))
+        return redirect(url_for("fornecedores"))
+
+    if request.method == "POST":  # cadastrar (sem id) ou alterar (com id)
+        atual = {c: request.form.get(c, "").strip() for c in ("id", "nome", "contato", "telefone", "email")}
+        atual["nome"] = atual["nome"].upper()
+        atual["deptos"] = set(request.form.getlist("deptos"))
+        if not atual["nome"]:
+            abort(400)
+        try:
+            with base:
+                dados = (atual["nome"], atual["contato"], atual["telefone"], atual["email"])
+                if atual["id"]:
+                    base.execute("UPDATE fornecedores SET nome = ?, contato = ?, telefone = ?, email = ? WHERE id = ?",
+                                 (*dados, atual["id"]))
+                    fid = atual["id"]
+                else:
+                    fid = base.execute("INSERT INTO fornecedores (nome, contato, telefone, email) VALUES (?, ?, ?, ?)",
+                                       dados).lastrowid
+                base.execute("DELETE FROM fornecedor_departamentos WHERE fornecedor_id = ?", (fid,))
+                # Só grava departamento que existe na base
+                base.executemany("INSERT INTO fornecedor_departamentos SELECT ?, codepto FROM departamentos WHERE codepto = ?",
+                                 [(fid, d) for d in atual["deptos"]])
+            return redirect(url_for("fornecedores"))
+        except sqlite3.IntegrityError:  # nome repetido: volta para a tela com o que foi digitado
+            erro = f"Já existe um fornecedor chamado {atual['nome']}."
+    else:
+        linha = base.execute("SELECT id, nome, contato, telefone, email FROM fornecedores WHERE id = ?",
+                             (request.args.get("editar"),)).fetchone()
+        atual = dict(zip(("id", "nome", "contato", "telefone", "email"), linha or ("",) * 5))
+        atual["deptos"] = {d for (d,) in base.execute(
+            "SELECT codepto FROM fornecedor_departamentos WHERE fornecedor_id = ?", (atual["id"],))}
+
+    atende = {}
+    for fid, nome in base.execute("""SELECT fd.fornecedor_id, d.nome FROM fornecedor_departamentos fd
+                                     JOIN departamentos d ON d.codepto = fd.codepto ORDER BY d.nome"""):
+        atende.setdefault(fid, []).append(nome)
+    return render_template(
+        "fornecedores.html", editando=atual, erro=erro, atende=atende,
+        fornecedores=base.execute("SELECT id, nome, contato, telefone, email FROM fornecedores ORDER BY nome").fetchall(),
+        departamentos=base.execute("SELECT codepto, nome FROM departamentos ORDER BY nome, codepto").fetchall())
 
 
 @app.route("/acompanhamento")

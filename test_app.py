@@ -67,6 +67,19 @@ assert "colunas" in cliente.post("/familias", data=envio, content_type="multipar
 cliente.post("/familias", data={"codprod": "2", "familia": "ARROZ"})
 pagina = cliente.get(f"/sugestao?semana={semana}").text
 assert "2 sabores" in pagina and "<strong>38 un</strong>" in pagina and "<strong>37 un</strong>" in pagina  # 75 salvos
+# Fornecedores: cadastrar, nome repetido, editar e excluir
+cliente.post("/fornecedores", data={"nome": "camil", "telefone": "11 9999", "deptos": ["102", "999"]})  # 999 não existe
+assert base.execute("SELECT f.nome, fd.codepto FROM fornecedores f JOIN fornecedor_departamentos fd ON fd.fornecedor_id = f.id"
+                    ).fetchall() == [("CAMIL", "102")]
+assert "MERCEARIA BASICA" in cliente.get("/fornecedores").text
+assert "Já existe" in cliente.post("/fornecedores", data={"nome": "Camil"}).text
+assert 'value="11 9999"' in cliente.get("/fornecedores?editar=1").text
+cliente.post("/fornecedores", data={"id": "1", "nome": "CAMIL ALIMENTOS"})                   # tirou o departamento
+assert base.execute("SELECT nome FROM fornecedores").fetchall() == [("CAMIL ALIMENTOS",)]
+assert base.execute("SELECT COUNT(*) FROM fornecedor_departamentos").fetchone() == (0,)
+cliente.post("/fornecedores", data={"excluir": "1"})
+assert base.execute("SELECT COUNT(*) FROM fornecedores").fetchone() == (0,)
+
 cliente.get("/sair")
 assert cliente.get("/alertas").status_code == 302
 print("OK")
