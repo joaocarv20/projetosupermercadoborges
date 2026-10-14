@@ -11,6 +11,9 @@ from sistema import motor
 
 base_local.ARQUIVO_BASE = Path(tempfile.mkdtemp()) / "teste.db"
 from app import app  # noqa: E402  (depois de trocar a base)
+from sistema.fornecedores import link_pedido  # noqa: E402
+
+forn_link = lambda telefone: link_pedido(telefone, "", []).split("Pedido")[0]
 
 base = base_local.abrir()
 base.execute("INSERT INTO departamentos VALUES ('102', 'MERCEARIA BASICA', 1)")
@@ -113,6 +116,17 @@ assert '<option value="3" selected>CAMIL</option>' in cliente.get(f"/sugestao?se
 assert "ARROZ" in cliente.get(f"/sugestao?semana={semana}&fornecedor=3").text
 cliente.post("/fornecedores", data={"nome": "SEM PRODUTO"})
 assert "Nenhum produto" in cliente.get(f"/sugestao?semana={semana}&fornecedor=4").text
+
+# Pedido pelo WhatsApp: salva e abre o wa.me com só os sabores em que o fornecedor é o escolhido
+cliente.post("/fornecedores", data={"id": "3", "nome": "CAMIL", "telefone": "(11) 98765-4321"})
+assert "mandar pedido para CAMIL" in cliente.get(f"/sugestao?semana={semana}&fornecedor=3").text
+resposta = cliente.post(f"/sugestao?semana={semana}&fornecedor=3", data={"qtd_1": "75", "forn_1": "3", "enviar": "3"})
+link = resposta.location
+assert link.startswith("https://wa.me/5511987654321?text=Pedido") and "ARROZ%205KG" in link and "FEIJAO" not in link, link
+assert "Total%3A%201%20itens" in link
+assert "/sugestao" in cliente.post(f"/sugestao?semana={semana}&fornecedor=4", data={"enviar": "4"}).location  # nada a pedir
+assert forn_link("0xx11 3333-4444") == "https://wa.me/551133334444?text="                       # fixo com 0 na frente
+assert forn_link("") == "https://wa.me/?text="                                                  # sem telefone
 
 cliente.get("/sair")
 assert cliente.get("/alertas").status_code == 302

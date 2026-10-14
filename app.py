@@ -167,10 +167,11 @@ def sugestao():
         with base:
             base.executemany("UPDATE sugestoes SET qtd_final = ? WHERE semana = ? AND familia_id = ?", finais)
             forn.gravar_escolhas(base, semana, escolhas)
+        if request.form.get("enviar", "").isdigit():  # "Mandar pedido": já salvou, agora abre o WhatsApp
+            return mandar_pedido(base, semana, linhas, int(request.form["enviar"])) or redirect(request.full_path)
         return redirect(request.full_path)
 
-    salvas = dict(base.execute("SELECT familia_id, qtd_final FROM sugestoes WHERE semana = ? AND qtd_final IS NOT NULL",
-                               (semana.isoformat(),)))
+    salvas = quantidades_salvas(base, semana)
     # Um departamento por vez: a lista inteira passa de 5 mil famílias e trava o navegador.
     # A busca procura em todos os departamentos.
     departamentos = sorted({l["departamento"] or "SEM DEPARTAMENTO" for l in linhas})
@@ -179,7 +180,7 @@ def sugestao():
         departamento = departamentos[0] if departamentos else ""
     busca = request.args.get("busca", "").strip()
     escolha, ligados = forn.escolhidos(base, semana)
-    lista_fornecedores = base.execute("SELECT id, nome FROM fornecedores ORDER BY nome").fetchall()
+    lista_fornecedores = base.execute("SELECT id, nome, telefone FROM fornecedores ORDER BY nome").fetchall()
     try:
         fornecedor = int(request.args.get("fornecedor", ""))
     except ValueError:
@@ -215,7 +216,31 @@ def sugestao():
         "sugestao.html", semana=semana, rotulo=rotulo_semana(semana), tipo=TIPOS_SEMANA[tipo_semana(semana)],
         obs=obs, semanas=[(s, rotulo_semana(s), TIPOS_SEMANA[tipo_semana(s)]["nome"]) for s in semanas],
         familias=familias, departamentos=departamentos, departamento=departamento, busca=busca,
-        fornecedores=lista_fornecedores, fornecedor=fornecedor)
+        fornecedores=lista_fornecedores, fornecedor=fornecedor,
+        escolhido=next((f for f in lista_fornecedores if f[0] == fornecedor), None))
+
+
+def quantidades_salvas(base, semana):
+    """{familia_id: quantidade final que o comprador salvou}."""
+    return dict(base.execute("SELECT familia_id, qtd_final FROM sugestoes WHERE semana = ? AND qtd_final IS NOT NULL",
+                             (semana.isoformat(),)))
+
+
+def mandar_pedido(base, semana, linhas, fornecedor):
+    """Redireciona para o WhatsApp com o que vai para o fornecedor: a quantidade salva de cada família,
+    repartida pelos sabores como na tela, só dos sabores em que ele é o escolhido. None se não há nada a pedir."""
+    linha = base.execute("SELECT telefone FROM fornecedores WHERE id = ?", (fornecedor,)).fetchone()
+    if not linha:
+        return None
+    salvas, (escolha, _) = quantidades_salvas(base, semana), forn.escolhidos(base, semana)
+    itens = []
+    for l in linhas:
+        final = salvas.get(l["familia_id"], l["sugestao"])
+        casas, un = (1, "kg") if l["unidade"] == "KG" else (0, "un")
+        for p, qtd in zip(l["produtos"], motor.dividir(final, [p["qtd"] for p in l["produtos"]], l["unidade"])):
+            if qtd > 0 and escolha.get(p["codprod"]) == fornecedor:
+                itens.append((p["descricao"], f"{numero_br(qtd, casas)} {un}"))
+    return redirect(forn.link_pedido(linha[0], rotulo_semana(semana), sorted(itens))) if itens else None
 
 
 @app.route("/alertas", methods=["GET", "POST"])

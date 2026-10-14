@@ -6,6 +6,8 @@ Por enquanto a ligação é feita à mão, na tela Fornecedores > Produtos ou pe
 """
 import csv
 import io
+import re
+from urllib.parse import quote
 
 from sistema.familias import ativos, ler_planilha
 
@@ -53,6 +55,17 @@ def gravar_escolhas(base, semana, pares):
            WHERE codprod = ? AND fornecedor_id = ?
            ON CONFLICT(semana, codprod) DO UPDATE SET fornecedor_id = excluded.fornecedor_id""",
         [(semana.isoformat(), c, f) for c, f in pares])
+
+
+def link_pedido(telefone, semana_rotulo, itens):
+    """Link do WhatsApp (wa.me) com o pedido já escrito. itens = [(produto, quantidade em texto)].
+    Sem telefone, o WhatsApp abre e pede para escolher o contato."""
+    texto = "\n".join(["Pedido – Supermercado Borges", f"Semana de {semana_rotulo}", "",
+                       *(f"{' '.join(produto.split())} – {qtd}" for produto, qtd in itens), "", f"Total: {len(itens)} itens"])
+    numero = re.sub(r"\D", "", telefone or "").lstrip("0")
+    if len(numero) in (10, 11):  # DDD + número, sem o 55 do Brasil
+        numero = "55" + numero
+    return f"https://wa.me/{numero}?text={quote(texto)}"
 
 
 def exportar(base):

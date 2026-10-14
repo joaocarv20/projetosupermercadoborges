@@ -43,7 +43,7 @@
   <label>Fornecedor (todos os departamentos)
     <select name="fornecedor">
       <option value="">Todos</option>
-      {% for fid, nome in fornecedores %}<option value="{{ fid }}" {{ 'selected' if fid == fornecedor }}>{{ nome }}</option>{% endfor %}
+      {% for fid, nome, _ in fornecedores %}<option value="{{ fid }}" {{ 'selected' if fid == fornecedor }}>{{ nome }}</option>{% endfor %}
     </select>
   </label>
   <button type="submit" class="botao">Aplicar</button>
@@ -54,6 +54,12 @@
 <p class="nao-imprimir">
   <button type="submit" class="botao principal">Salvar quantidades e fornecedores</button>
   <button type="button" class="botao" onclick="window.print()">Imprimir lista de compra</button>
+  {% if escolhido and familias %}
+    <!-- Salva e abre o WhatsApp numa aba nova, com o pedido do fornecedor já escrito -->
+    <button type="submit" name="enviar" value="{{ escolhido[0] }}" formtarget="_blank" class="botao whatsapp">
+      Salvar e mandar pedido para {{ escolhido[1] }} pelo WhatsApp</button>
+    {% if not escolhido[2] %}<small class="qtd-sabores">Sem telefone no cadastro: o WhatsApp vai pedir o contato.</small>{% endif %}
+  {% endif %}
 </p>
 <table class="tabela tabela-familias">
   <thead>
