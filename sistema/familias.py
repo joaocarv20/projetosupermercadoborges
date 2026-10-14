@@ -80,15 +80,22 @@ def exportar(base):
     return "\ufeff" + saida.getvalue()  # BOM: o Excel reconhece os acentos
 
 
-def importar(base, dados):
-    """Lê a planilha editada (bytes): só as colunas codigo e familia importam. Família vazia é ignorada."""
+def ler_planilha(dados, colunas):
+    """Linhas (dicts) de um CSV salvo pelo Excel, em UTF-8 ou cp1252, com ; ou , como separador."""
     try:
         texto = dados.decode("utf-8-sig")
     except UnicodeDecodeError:  # "CSV (separado por vírgulas)" do Excel no Windows grava em cp1252
         texto = dados.decode("cp1252")
     linhas = list(csv.DictReader(io.StringIO(texto), delimiter=";" if ";" in texto.split("\n", 1)[0] else ","))
-    if not linhas or not {"codigo", "familia"} <= set(linhas[0]):
-        raise ValueError("A planilha precisa das colunas 'codigo' e 'familia' (como sai no botão Baixar planilha).")
+    if not linhas or not set(colunas) <= set(linhas[0]):
+        nomes = " e ".join(f"'{c}'" for c in colunas)
+        raise ValueError(f"A planilha precisa das colunas {nomes} (como sai no botão Baixar planilha).")
+    return linhas
+
+
+def importar(base, dados):
+    """Lê a planilha editada (bytes): só as colunas codigo e familia importam. Família vazia é ignorada."""
+    linhas = ler_planilha(dados, ["codigo", "familia"])
     pares = [(int(l["codigo"]), l["familia"]) for l in linhas if (l["codigo"] or "").strip().isdigit()]
     with base:
         return mover(base, pares)

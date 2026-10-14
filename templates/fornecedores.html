@@ -4,8 +4,13 @@
 
 <header class="cabecalho">
   <h1>Fornecedores</h1>
-  <p class="explicacao">Cadastre os fornecedores e marque os departamentos que cada um atende.</p>
+  <p class="explicacao">Cadastre aqui os fornecedores; na aba Produtos, diga quem fornece cada produto.</p>
 </header>
+
+<nav class="abas">
+  <a class="botao principal" href="{{ url_for('fornecedores') }}">Cadastro</a>
+  <a class="botao" href="{{ url_for('fornecedores_produtos') }}">Produtos</a>
+</nav>
 
 {% if erro %}<div class="faixa-alerta">{{ erro }}</div>{% endif %}
 
@@ -15,30 +20,23 @@
   <label>Contato (vendedor) <input name="contato" value="{{ editando.contato or '' }}"></label>
   <label>Telefone / WhatsApp <input type="tel" name="telefone" value="{{ editando.telefone or '' }}"></label>
   <label>E-mail <input type="email" name="email" value="{{ editando.email or '' }}"></label>
-  <fieldset class="deptos">
-    <legend>Departamentos que ele fornece</legend>
-    {% for codepto, nome in departamentos %}
-    <label><input type="checkbox" name="deptos" value="{{ codepto }}" {{ 'checked' if codepto in editando.deptos }}>
-      {{ nome }} <small class="qtd-sabores">{{ codepto }}</small></label>
-    {% endfor %}
-  </fieldset>
   <button type="submit" class="botao principal">{{ 'Salvar alterações' if editando.id else 'Cadastrar fornecedor' }}</button>
   {% if editando.id %}<a class="botao discreto" href="{{ url_for('fornecedores') }}">Cancelar</a>{% endif %}
 </form>
 
 <table class="tabela">
   <thead>
-    <tr><th>Fornecedor</th><th>Contato</th><th>Departamentos</th><th></th></tr>
+    <tr><th>Fornecedor</th><th>Contato</th><th class="num">Produtos</th><th></th></tr>
   </thead>
   <tbody>
-    {% for id, nome, contato, telefone, email in fornecedores %}
+    {% for id, nome, contato, telefone, email, produtos in fornecedores %}
     <tr>
       <td><strong>{{ nome }}</strong></td>
       <td>{{ contato or '' }}{% if telefone %}<br>{{ telefone }}{% endif %}{% if email %}<br>{{ email }}{% endif %}</td>
-      <td>{{ atende.get(id, ['—'])|join(', ') }}</td>
+      <td class="num">{{ produtos }}</td>
       <td class="acoes"><div>
         <a class="botao pequeno" href="{{ url_for('fornecedores', editar=id) }}">Editar</a>
-        <form method="post" data-pergunta="Excluir o fornecedor {{ nome }}?" onsubmit="return confirm(this.dataset.pergunta)">
+        <form method="post" data-pergunta="Excluir o fornecedor {{ nome }}? Ele sai de todos os produtos." onsubmit="return confirm(this.dataset.pergunta)">
           <input type="hidden" name="excluir" value="{{ id }}">
           <button type="submit" class="botao pequeno discreto">Excluir</button>
         </form>

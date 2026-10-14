@@ -21,6 +21,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from sistema import acompanhamento as acomp
 from sistema import alertas as lista_alerta
 from sistema import familias as fam
+from sistema import fornecedores as forn
 from sistema import base_local
 from sistema import motor
 from sistema.base_local import abrir
@@ -255,14 +256,13 @@ def fornecedores():
     base, erro = abrir(), None
     if request.method == "POST" and "excluir" in request.form:
         with base:
-            base.execute("DELETE FROM fornecedor_departamentos WHERE fornecedor_id = ?", (request.form["excluir"],))
+            base.execute("DELETE FROM produto_fornecedores WHERE fornecedor_id = ?", (request.form["excluir"],))
             base.execute("DELETE FROM fornecedores WHERE id = ?", (request.form["excluir"],))
         return redirect(url_for("fornecedores"))
 
     if request.method == "POST":  # cadastrar (sem id) ou alterar (com id)
         atual = {c: request.form.get(c, "").strip() for c in ("id", "nome", "contato", "telefone", "email")}
-        atual["nome"] = atual["nome"].upper()
-        atual["deptos"] = set(request.form.getlist("deptos"))
+        atual["nome"] = forn.nome_limpo(atual["nome"])
         if not atual["nome"]:
             abort(400)
         try:
@@ -271,14 +271,8 @@ def fornecedores():
                 if atual["id"]:
                     base.execute("UPDATE fornecedores SET nome = ?, contato = ?, telefone = ?, email = ? WHERE id = ?",
                                  (*dados, atual["id"]))
-                    fid = atual["id"]
                 else:
-                    fid = base.execute("INSERT INTO fornecedores (nome, contato, telefone, email) VALUES (?, ?, ?, ?)",
-                                       dados).lastrowid
-                base.execute("DELETE FROM fornecedor_departamentos WHERE fornecedor_id = ?", (fid,))
-                # Só grava departamento que existe na base
-                base.executemany("INSERT INTO fornecedor_departamentos SELECT ?, codepto FROM departamentos WHERE codepto = ?",
-                                 [(fid, d) for d in atual["deptos"]])
+                    base.execute("INSERT INTO fornecedores (nome, contato, telefone, email) VALUES (?, ?, ?, ?)", dados)
             return redirect(url_for("fornecedores"))
         except sqlite3.IntegrityError:  # nome repetido: volta para a tela com o que foi digitado
             erro = f"Já existe um fornecedor chamado {atual['nome']}."
@@ -286,17 +280,60 @@ def fornecedores():
         linha = base.execute("SELECT id, nome, contato, telefone, email FROM fornecedores WHERE id = ?",
                              (request.args.get("editar"),)).fetchone()
         atual = dict(zip(("id", "nome", "contato", "telefone", "email"), linha or ("",) * 5))
-        atual["deptos"] = {d for (d,) in base.execute(
-            "SELECT codepto FROM fornecedor_departamentos WHERE fornecedor_id = ?", (atual["id"],))}
 
-    atende = {}
-    for fid, nome in base.execute("""SELECT fd.fornecedor_id, d.nome FROM fornecedor_departamentos fd
-                                     JOIN departamentos d ON d.codepto = fd.codepto ORDER BY d.nome"""):
-        atende.setdefault(fid, []).append(nome)
     return render_template(
-        "fornecedores.html", editando=atual, erro=erro, atende=atende,
-        fornecedores=base.execute("SELECT id, nome, contato, telefone, email FROM fornecedores ORDER BY nome").fetchall(),
-        departamentos=base.execute("SELECT codepto, nome FROM departamentos ORDER BY nome, codepto").fetchall())
+        "fornecedores.html", editando=atual, erro=erro,
+        fornecedores=base.execute("""SELECT f.id, f.nome, f.contato, f.telefone, f.email, COUNT(pf.codprod)
+                                     FROM fornecedores f LEFT JOIN produto_fornecedores pf ON pf.fornecedor_id = f.id
+                                     GROUP BY f.id ORDER BY f.nome""").fetchall())
+
+
+@app.route("/fornecedores/produtos", methods=["GET", "POST"])
+def fornecedores_produtos():
+    base, erro = abrir(), None
+    if request.method == "POST":
+        try:
+            if "planilha" in request.files:
+                lidos = forn.importar(base, request.files["planilha"].read())
+                return redirect(url_for("fornecedores_produtos", importados=lidos))
+            with base:
+                if "remover" in request.form:  # tira um fornecedor de um produto
+                    base.execute("DELETE FROM produto_fornecedores WHERE codprod = ? AND fornecedor_id = ?",
+                                 (int(request.form["codprod"]), int(request.form["remover"])))
+                else:  # acrescenta um fornecedor a todos os produtos da família
+                    forn.ligar(base, [int(c) for c in request.form["codprods"].split(",")], request.form["fornecedor"])
+            return redirect(request.full_path)
+        except KeyError:
+            abort(400)
+        except ValueError as e:  # fornecedor não cadastrado, planilha errada: mostra na própria tela
+            erro = str(e)
+
+    # Mesmo filtro da tela de Famílias: um departamento por vez, a busca procura em todos
+    produtos = fam.ativos(base)
+    ligados = forn.por_produto(base)
+    departamentos = sorted({d for _, _, d, _ in produtos})
+    departamento = request.args.get("departamento", "")
+    if departamento not in departamentos:
+        departamento = departamentos[0] if departamentos else ""
+    busca = request.args.get("busca", "").strip()
+    sem_fornecedor = bool(request.args.get("sem_fornecedor"))
+    grupos = {}
+    for codprod, descricao, depto, familia in produtos:
+        if sem_fornecedor and codprod in ligados:
+            continue
+        nomes = " ".join(n for _, n in ligados.get(codprod, []))
+        if (sem_acento(busca) in sem_acento(f"{descricao} {familia} {nomes}")) if busca else depto == departamento:
+            grupos.setdefault(familia, []).append((codprod, descricao, ligados.get(codprod, [])))
+    return render_template(
+        "fornecedores_produtos.html", grupos=grupos, departamentos=departamentos, departamento=departamento,
+        busca=busca, sem_fornecedor=sem_fornecedor, erro=erro, importados=request.args.get("importados"),
+        nomes=[n for (n,) in base.execute("SELECT nome FROM fornecedores ORDER BY nome")])
+
+
+@app.route("/fornecedores-produtos.csv")
+def fornecedores_planilha():
+    return Response(forn.exportar(abrir()), mimetype="text/csv",
+                    headers={"Content-Disposition": f"attachment; filename=fornecedores-{date.today()}.csv"})
 
 
 @app.route("/acompanhamento")

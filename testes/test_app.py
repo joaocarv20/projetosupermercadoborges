@@ -67,18 +67,36 @@ assert "colunas" in cliente.post("/familias", data=envio, content_type="multipar
 cliente.post("/familias", data={"codprod": "2", "familia": "ARROZ"})
 pagina = cliente.get(f"/sugestao?semana={semana}").text
 assert "2 sabores" in pagina and "<strong>38 un</strong>" in pagina and "<strong>37 un</strong>" in pagina  # 75 salvos
-# Fornecedores: cadastrar, nome repetido, editar e excluir
-cliente.post("/fornecedores", data={"nome": "camil", "telefone": "11 9999", "deptos": ["102", "999"]})  # 999 não existe
-assert base.execute("SELECT f.nome, fd.codepto FROM fornecedores f JOIN fornecedor_departamentos fd ON fd.fornecedor_id = f.id"
-                    ).fetchall() == [("CAMIL", "102")]
-assert "MERCEARIA BASICA" in cliente.get("/fornecedores").text
+# Fornecedores: cadastrar, nome repetido, editar
+cliente.post("/fornecedores", data={"nome": " camil ", "telefone": "11 9999"})
+assert base.execute("SELECT id, nome FROM fornecedores").fetchall() == [(1, "CAMIL")]
 assert "Já existe" in cliente.post("/fornecedores", data={"nome": "Camil"}).text
 assert 'value="11 9999"' in cliente.get("/fornecedores?editar=1").text
-cliente.post("/fornecedores", data={"id": "1", "nome": "CAMIL ALIMENTOS"})                   # tirou o departamento
-assert base.execute("SELECT nome FROM fornecedores").fetchall() == [("CAMIL ALIMENTOS",)]
-assert base.execute("SELECT COUNT(*) FROM fornecedor_departamentos").fetchone() == (0,)
-cliente.post("/fornecedores", data={"excluir": "1"})
-assert base.execute("SELECT COUNT(*) FROM fornecedores").fetchone() == (0,)
+cliente.post("/fornecedores", data={"id": "1", "nome": "CAMIL ALIMENTOS"})
+cliente.post("/fornecedores", data={"nome": "ATACADO SUL"})
+
+# Fornecedor por produto: adicionar à família, fornecedor não cadastrado, tirar de um produto, planilha
+ligados = lambda: base.execute("SELECT codprod, f.nome FROM produto_fornecedores JOIN fornecedores f ON f.id = fornecedor_id "
+                               "ORDER BY 1, 2").fetchall()
+cliente.post("/fornecedores/produtos", data={"codprods": "1,2", "fornecedor": "camil alimentos"})
+cliente.post("/fornecedores/produtos", data={"codprods": "2", "fornecedor": "ATACADO SUL"})
+assert ligados() == [(1, "CAMIL ALIMENTOS"), (2, "ATACADO SUL"), (2, "CAMIL ALIMENTOS")]
+assert "não está cadastrado" in cliente.post("/fornecedores/produtos", data={"codprods": "1", "fornecedor": "XYZ"}).text
+cliente.post("/fornecedores/produtos", data={"codprod": "2", "remover": "1"})
+assert ligados() == [(1, "CAMIL ALIMENTOS"), (2, "ATACADO SUL")]
+assert "ATACADO SUL" in cliente.get("/fornecedores/produtos?busca=atacado").text            # busca pelo fornecedor
+planilha = cliente.get("/fornecedores-produtos.csv").get_data(as_text=True)
+assert "1;ARROZ 5KG;MERCEARIA BASICA;ARROZ;CAMIL ALIMENTOS" in planilha
+envio = {"planilha": (io.BytesIO("codigo;fornecedor\n1;\n2;atacado sul\n2;camil alimentos\n".encode()), "f.csv")}
+assert cliente.post("/fornecedores/produtos", data=envio, content_type="multipart/form-data").location.endswith("importados=2")
+assert ligados() == [(2, "ATACADO SUL"), (2, "CAMIL ALIMENTOS")]                              # o 1 ficou sem fornecedor
+envio = {"planilha": (io.BytesIO("codigo;fornecedor\n1;NOVO\n".encode()), "f.csv")}
+assert "NOVO" in cliente.post("/fornecedores/produtos", data=envio, content_type="multipart/form-data").text
+assert ligados() == [(2, "ATACADO SUL"), (2, "CAMIL ALIMENTOS")]                              # nada gravado
+assert "ARROZ 5KG" in cliente.get("/fornecedores/produtos?sem_fornecedor=1").text
+
+cliente.post("/fornecedores", data={"excluir": "1"})                                          # sai dos produtos também
+assert ligados() == [(2, "ATACADO SUL")]
 
 cliente.get("/sair")
 assert cliente.get("/alertas").status_code == 302

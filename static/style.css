@@ -222,9 +222,10 @@ summary:hover { color: var(--destaque); }
 .mover input { flex: 1; min-width: 12rem; padding: .3rem .5rem; border: 1px solid #9aa5b1; border-radius: 6px; }
 
 /* ---------- Fornecedores ---------- */
-.deptos {
-  flex-basis: 100%; border: none; padding: 0; margin: 0;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .3rem 1rem;
-}
-.deptos legend { font-size: .9rem; font-weight: 600; margin-bottom: .4rem; }
-.filtros .deptos label { flex-direction: row; align-items: center; gap: .5rem; font-weight: 400; min-height: 36px; }
+.abas { display: flex; gap: .5rem; margin-bottom: 1rem; }
+.chip { display: inline-flex; align-items: center; gap: .3rem; margin: 0 .3rem .3rem 0; padding: .15rem .2rem .15rem .6rem;
+  border: 1px solid var(--borda); border-radius: 999px; background: #f1f5f9; font-size: .9rem; }
+.chip button { border: none; background: none; cursor: pointer; color: var(--texto-suave); font-size: 1.1rem; min-width: 32px; min-height: 32px; }
+.chip button:hover { color: var(--vermelho); }
+.filtros label.marcar { flex-direction: row; align-items: center; min-height: 44px; font-weight: 400; }
+td .mover { margin-top: .5rem; }

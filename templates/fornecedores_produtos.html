@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block titulo %}Fornecedores dos produtos{% endblock %}
+{% block conteudo %}
+
+<header class="cabecalho">
+  <h1>Fornecedores</h1>
+  <p class="explicacao">Quem fornece cada produto. Um produto pode ter mais de um fornecedor.
+    O fornecedor digitado na família vale para todos os produtos dela; para tirar de um só, clique no × ao lado do nome.
+    Só aparecem produtos que venderam no último ano.</p>
+</header>
+
+<nav class="abas">
+  <a class="botao" href="{{ url_for('fornecedores') }}">Cadastro</a>
+  <a class="botao principal" href="{{ url_for('fornecedores_produtos') }}">Produtos</a>
+</nav>
+
+{% if erro %}<div class="faixa-alerta">{{ erro }}</div>{% endif %}
+{% if importados %}<div class="faixa-ok">Planilha importada: {{ importados }} produtos lidos.</div>{% endif %}
+
+<div class="filtros">
+  <form method="get" class="filtros-linha">
+    <label>Departamento
+      <select name="departamento">
+        {% for d in departamentos %}<option {{ 'selected' if d == departamento }}>{{ d }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Buscar em todos os departamentos
+      <input type="search" name="busca" value="{{ busca }}" placeholder="Ex.: palmolive ou camil">
+    </label>
+    <label class="marcar"><input type="checkbox" name="sem_fornecedor" value="1" {{ 'checked' if sem_fornecedor }}> Só sem fornecedor</label>
+    <button type="submit" class="botao">Aplicar</button>
+  </form>
+  <!-- Ajuste em massa pelo Excel: uma linha por produto e fornecedor -->
+  <a class="botao" href="{{ url_for('fornecedores_planilha') }}">Baixar planilha</a>
+  <form method="post" enctype="multipart/form-data" class="filtros-linha">
+    <label>Enviar planilha corrigida <input type="file" name="planilha" accept=".csv" required></label>
+    <button type="submit" class="botao">Enviar</button>
+  </form>
+</div>
+
+<datalist id="nomes">{% for nome in nomes %}<option value="{{ nome }}">{% endfor %}</datalist>
+
+<table class="tabela">
+  <thead>
+    <tr><th>Família</th><th>Produto</th><th>Fornecedores</th></tr>
+  </thead>
+  <tbody>
+    {% for familia, produtos in grupos.items() %}
+      {% for codprod, descricao, ligados in produtos %}
+      <tr>
+        {% if loop.first %}<td rowspan="{{ produtos|length }}"><strong>{{ familia }}</strong>
+          <form method="post" class="mover">
+            <input type="hidden" name="codprods" value="{{ produtos|map('first')|join(',') }}">
+            <input name="fornecedor" list="nomes" required placeholder="Fornecedor" aria-label="Fornecedor para {{ familia }}">
+            <button type="submit" class="botao pequeno">Adicionar</button>
+          </form></td>{% endif %}
+        <td>{{ descricao }} <small class="qtd-sabores">{{ codprod }}</small></td>
+        <td>
+          {% for fid, nome in ligados %}
+          <form method="post" class="chip">
+            <input type="hidden" name="codprod" value="{{ codprod }}">
+            {{ nome }} <button type="submit" name="remover" value="{{ fid }}" aria-label="Tirar {{ nome }} de {{ descricao }}">×</button>
+          </form>
+          {% else %}<span class="qtd-sabores">sem fornecedor</span>{% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    {% else %}
+    <tr><td colspan="3" class="vazio">Nenhum produto encontrado com esses filtros.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
