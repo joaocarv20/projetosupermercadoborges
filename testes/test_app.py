@@ -98,6 +98,22 @@ assert "ARROZ 5KG" in cliente.get("/fornecedores/produtos?sem_fornecedor=1").tex
 cliente.post("/fornecedores", data={"excluir": "1"})                                          # sai dos produtos também
 assert ligados() == [(2, "ATACADO SUL")]
 
+# Sugestão: escolher o fornecedor do sabor que tem dois, filtrar por fornecedor
+cliente.post("/fornecedores", data={"nome": "CAMIL"})                                         # id 3
+cliente.post("/fornecedores/produtos", data={"codprods": "1,2", "fornecedor": "CAMIL"})
+cliente.post("/fornecedores/produtos", data={"codprods": "1", "fornecedor": "ATACADO SUL"})
+# produto 1: ATACADO SUL e CAMIL (vem marcado o 1º em ordem alfabética); produto 2: ATACADO SUL e CAMIL também
+pagina = cliente.get(f"/sugestao?semana={semana}").text
+assert 'name="forn_1"' in pagina and '<option value="2" selected>ATACADO SUL</option>' in pagina
+cliente.post(f"/sugestao?semana={semana}", data={"qtd_1": "75", "forn_1": "3", "forn_2": "99"})       # 99 não é fornecedor do 2
+assert base.execute("SELECT codprod, fornecedor_id FROM escolha_fornecedor").fetchall() == [(1, 3)]
+assert '<option value="3" selected>CAMIL</option>' in cliente.get(f"/sugestao?semana={semana}").text
+seguinte = (date.fromisoformat(semana) + timedelta(weeks=1)).isoformat()
+assert '<option value="3" selected>CAMIL</option>' in cliente.get(f"/sugestao?semana={seguinte}").text  # a última escolha vale
+assert "ARROZ" in cliente.get(f"/sugestao?semana={semana}&fornecedor=3").text
+cliente.post("/fornecedores", data={"nome": "SEM PRODUTO"})
+assert "Nenhum produto" in cliente.get(f"/sugestao?semana={semana}&fornecedor=4").text
+
 cliente.get("/sair")
 assert cliente.get("/alertas").status_code == 302
 print("OK")

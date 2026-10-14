@@ -38,6 +38,9 @@ CREATE TABLE IF NOT EXISTS fornecedores (                            -- cadastra
 CREATE TABLE IF NOT EXISTS produto_fornecedores (                    -- quem fornece cada produto (pode ser mais de um)
     codprod INTEGER NOT NULL, fornecedor_id INTEGER NOT NULL, PRIMARY KEY (codprod, fornecedor_id)
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS escolha_fornecedor (                      -- de quem o comprador pediu cada produto na semana
+    semana TEXT NOT NULL, codprod INTEGER NOT NULL, fornecedor_id INTEGER NOT NULL, PRIMARY KEY (semana, codprod)
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS usuarios (usuario TEXT PRIMARY KEY, senha_hash TEXT NOT NULL);
 """
 

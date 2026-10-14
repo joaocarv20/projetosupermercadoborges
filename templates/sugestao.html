@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block titulo %}Sugestão de compra{% endblock %}
 {% block conteudo %}
+{# Fornecedor do produto: lista quando tem mais de um, nome quando tem um só, nada quando não tem #}
+{% macro escolher(p) -%}
+  {% if p.fornecedores|length > 1 %}
+    <select class="fornecedor" name="forn_{{ p.codprod }}" aria-label="Fornecedor de {{ p.descricao }}">
+      {% for fid, nome in p.fornecedores %}<option value="{{ fid }}" {{ 'selected' if fid == p.escolhido }}>{{ nome }}</option>{% endfor %}
+    </select>
+  {% elif p.fornecedores %}{{ p.fornecedores[0][1] }}{% endif %}
+{%- endmacro %}
 
 <header class="cabecalho">
   <h1>Sugestão de compra da semana</h1>
@@ -10,7 +18,7 @@
   </p>
   {% if obs %}<p class="obs">Feriado: {{ obs }}</p>{% endif %}
   <p class="explicacao">Mediana das últimas 6 semanas do mesmo tipo. A sugestão está em unidades ou quilos: converta para caixas na hora de pedir.
-    Clique numa família para ver quanto comprar de cada sabor (sai na impressão).</p>
+    Clique numa família para ver quanto comprar de cada sabor e de qual fornecedor (sai na impressão).</p>
 </header>
 
 <!-- Filtros: enviados pela URL (GET), sem JavaScript -->
@@ -32,13 +40,19 @@
   <label>Buscar em todos os departamentos
     <input type="search" name="busca" value="{{ busca }}" placeholder="Ex.: detergente">
   </label>
+  <label>Fornecedor (todos os departamentos)
+    <select name="fornecedor">
+      <option value="">Todos</option>
+      {% for fid, nome in fornecedores %}<option value="{{ fid }}" {{ 'selected' if fid == fornecedor }}>{{ nome }}</option>{% endfor %}
+    </select>
+  </label>
   <button type="submit" class="botao">Aplicar</button>
 </form>
 
 <!-- Sem action: envia para a mesma URL, com os filtros, e volta para ela depois de salvar -->
 <form method="post">
 <p class="nao-imprimir">
-  <button type="submit" class="botao principal">Salvar quantidades</button>
+  <button type="submit" class="botao principal">Salvar quantidades e fornecedores</button>
   <button type="button" class="botao" onclick="window.print()">Imprimir lista de compra</button>
 </p>
 <table class="tabela tabela-familias">
@@ -61,11 +75,12 @@
           <details>
             <summary>{{ f.nome }} <span class="qtd-sabores">{{ f.produtos|length }} sabores</span>
               {% if f.concentrado %}<span class="etiqueta laranja pequena">verificar registro</span>{% endif %}
+              {% if f.de %}<div class="forn-sabor">{{ f.de|join(', ') }}</div>{% endif %}
             </summary>
             <table class="sabores">
-              <tr><th>Sabor / variação</th><th class="num">Comprar</th><th class="num">Venda registrada</th><th class="num">% da família</th></tr>
+              <tr><th>Sabor / variação e fornecedor</th><th class="num">Comprar</th><th class="num">Venda registrada</th><th class="num">% da família</th></tr>
               {% for v in f.produtos %}
-              <tr><td>{{ v.descricao }}</td><td class="num"><strong>{{ v.comprar|br(f.casas) }} {{ f.un }}</strong></td>
+              <tr><td>{{ v.descricao }}<div class="forn-sabor">{{ escolher(v) }}</div></td><td class="num"><strong>{{ v.comprar|br(f.casas) }} {{ f.un }}</strong></td>
                 <td class="num">{{ v.qtd|br(f.casas) }} {{ f.un }}</td><td class="num">{{ v.pct|br(1) }}%</td></tr>
               {% endfor %}
             </table>
@@ -76,6 +91,7 @@
           </details>
         {% else %}
           {{ f.produtos[0].descricao if f.produtos else f.nome }}
+          {% if f.produtos %}<div class="forn-sabor">{{ escolher(f.produtos[0]) }}</div>{% endif %}
         {% endif %}
       </td>
       <td>{{ f.departamento }}</td>

@@ -161,8 +161,12 @@ def sugestao():
                 continue
             if qtd >= 0:
                 finais.append((qtd, semana.isoformat(), l["familia_id"]))
+        # Fornecedor escolhido, para os produtos com mais de um
+        escolhas = [(p["codprod"], int(request.form[f"forn_{p['codprod']}"])) for l in linhas for p in l["produtos"]
+                    if request.form.get(f"forn_{p['codprod']}", "").isdigit()]
         with base:
             base.executemany("UPDATE sugestoes SET qtd_final = ? WHERE semana = ? AND familia_id = ?", finais)
+            forn.gravar_escolhas(base, semana, escolhas)
         return redirect(request.full_path)
 
     salvas = dict(base.execute("SELECT familia_id, qtd_final FROM sugestoes WHERE semana = ? AND qtd_final IS NOT NULL",
@@ -174,12 +178,21 @@ def sugestao():
     if departamento not in departamentos:
         departamento = departamentos[0] if departamentos else ""
     busca = request.args.get("busca", "").strip()
+    escolha, ligados = forn.escolhidos(base, semana)
+    lista_fornecedores = base.execute("SELECT id, nome FROM fornecedores ORDER BY nome").fetchall()
+    try:
+        fornecedor = int(request.args.get("fornecedor", ""))
+    except ValueError:
+        fornecedor = None
 
     familias = []
     for l in linhas:
-        if not busca and (l["departamento"] or "SEM DEPARTAMENTO") != departamento:
+        # A busca e o fornecedor procuram em todos os departamentos (o pedido de um fornecedor passa por vários)
+        if not (busca or fornecedor) and (l["departamento"] or "SEM DEPARTAMENTO") != departamento:
             continue
         if busca and sem_acento(busca) not in sem_acento(" ".join([l["nome"], *(p["descricao"] for p in l["produtos"])])):
+            continue
+        if fornecedor and fornecedor not in (escolha.get(p["codprod"]) for p in l["produtos"]):
             continue
         kg = l["unidade"] == "KG"
         final = salvas.get(l["familia_id"], l["sugestao"])
@@ -187,7 +200,10 @@ def sugestao():
         comprar = motor.dividir(final, [p["qtd"] for p in l["produtos"]], l["unidade"])
         familias.append({
             **l, "un": "kg" if kg else "un", "casas": 1 if kg else 0,
-            "produtos": [{**p, "comprar": c} for p, c in zip(l["produtos"], comprar)],
+            "produtos": [{**p, "comprar": c, "fornecedores": ligados.get(p["codprod"], []), "escolhido": escolha.get(p["codprod"])}
+                         for p, c in zip(l["produtos"], comprar)],
+            # Fornecedores escolhidos na família (mostrado na linha da família quando ela tem vários sabores)
+            "de": sorted({n for p in l["produtos"] for fid, n in ligados.get(p["codprod"], []) if fid == escolha.get(p["codprod"])}),
             "qtd_final": int(final) if final == int(final) else final,  # 75 em vez de 75.0 no campo
             # Se um produto tem 80% ou mais da venda da família, provavelmente o caixa registra tudo nele
             "concentrado": len(l["produtos"]) > 1 and max(p["pct"] for p in l["produtos"]) >= 80,
@@ -198,7 +214,8 @@ def sugestao():
     return render_template(
         "sugestao.html", semana=semana, rotulo=rotulo_semana(semana), tipo=TIPOS_SEMANA[tipo_semana(semana)],
         obs=obs, semanas=[(s, rotulo_semana(s), TIPOS_SEMANA[tipo_semana(s)]["nome"]) for s in semanas],
-        familias=familias, departamentos=departamentos, departamento=departamento, busca=busca)
+        familias=familias, departamentos=departamentos, departamento=departamento, busca=busca,
+        fornecedores=lista_fornecedores, fornecedor=fornecedor)
 
 
 @app.route("/alertas", methods=["GET", "POST"])

@@ -31,6 +31,30 @@ def por_produto(base):
     return resultado
 
 
+def escolhidos(base, semana):
+    """({codprod: id do fornecedor escolhido}, por_produto) para os produtos que têm fornecedor.
+    Vale a escolha desta semana; sem ela, a última que o comprador fez para o produto."""
+    ligados = por_produto(base)
+    # Em ordem de semana: o dict fica com a escolha mais recente até esta semana
+    anteriores = dict(base.execute("SELECT codprod, fornecedor_id FROM escolha_fornecedor WHERE semana <= ? ORDER BY semana",
+                                   (semana.isoformat(),)))
+    escolha = {}
+    for codprod, fornecedores in ligados.items():
+        ids = [fid for fid, _ in fornecedores]
+        # ponytail: sem escolha anterior vai o 1º em ordem alfabética; trocar pelo último que entregou quando vier do Cefas
+        escolha[codprod] = anteriores.get(codprod) if anteriores.get(codprod) in ids else ids[0]
+    return escolha, ligados
+
+
+def gravar_escolhas(base, semana, pares):
+    """[(codprod, id do fornecedor)]: só grava se o fornecedor está ligado ao produto. Sem commit."""
+    base.executemany(
+        """INSERT INTO escolha_fornecedor SELECT ?, codprod, fornecedor_id FROM produto_fornecedores
+           WHERE codprod = ? AND fornecedor_id = ?
+           ON CONFLICT(semana, codprod) DO UPDATE SET fornecedor_id = excluded.fornecedor_id""",
+        [(semana.isoformat(), c, f) for c, f in pares])
+
+
 def exportar(base):
     """Planilha (CSV) dos produtos ativos: uma linha por fornecedor; sem fornecedor, a coluna fica vazia."""
     ligados = por_produto(base)
