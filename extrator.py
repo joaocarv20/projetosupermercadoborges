@@ -1,5 +1,5 @@
 """
-Extrator: copia do Oracle do Cefas para a base local (SQLite) o cadastro e as vendas.
+Extrator: copia do Oracle do Cefas para a base local (SQLite) o cadastro, as vendas e quem entrega cada produto.
 
 - Só lê (SELECT) e só traz totais por produto e por dia, nunca cupom ou cliente.
 - Vendas = JP.MOVIMENTACAO, operação 'S', sem cancelados (status 'C'), valor = qt x preço.
@@ -16,6 +16,7 @@ import sys
 from datetime import date, datetime, timedelta
 
 from sistema import familias
+from sistema import fornecedores as forn
 from sistema.base_local import abrir
 from config import DEPTOS_FORA, INICIO_HISTORICO
 from sistema.oracle import carregar_env, conectar, consultar, numero, reais
@@ -54,6 +55,18 @@ def carregar_produtos(ora, base, schema):
     # Produto novo entra na família da regra (tipo + marca + tamanho); quem já tem família não é mexido
     familias.atribuir(base)
     print(f"  {len(linhas)} produtos")
+
+
+def carregar_fornecedores(ora, base, schema):
+    """Quem entregou cada produto: JP.DADOSTEMPENT tem uma linha por entrada de mercadoria."""
+    cadastro = {cod: (forn.nome_limpo(nome) or f"FORNECEDOR {cod}", contato, telefone, email)
+                for cod, nome, contato, telefone, email in consultar(
+                    ora, f"SELECT f.codfornec, f.fornecedor, f.contato, f.telefone, f.email FROM {schema}.fornecedor f")}
+    entregas = consultar(ora, f"""
+        SELECT d.codprod, d.codfornecultent, MAX(d.nument) FROM {schema}.dadostempent d
+        WHERE d.codfornecultent IS NOT NULL GROUP BY d.codprod, d.codfornecultent""")
+    novas = forn.do_cefas(base, cadastro, entregas)
+    print(f"  {len(entregas)} pares produto-fornecedor com entrada no Cefas ({novas} ligações novas)")
 
 
 def meses(inicio, fim):
@@ -111,6 +124,7 @@ def main():
     carregar_departamentos(ora, base, schema)
     carregar_produtos(ora, base, schema)
     carregar_vendas(ora, base, schema, inicio)
+    carregar_fornecedores(ora, base, schema)
     ora.close()
     total, dias, produtos = base.execute("SELECT SUM(valor), COUNT(DISTINCT data), COUNT(DISTINCT codprod) FROM vendas_diarias").fetchone()
     print(f"\nPronto! Base local: {dias} dias, {produtos} produtos com venda, {reais(total)} no total.")

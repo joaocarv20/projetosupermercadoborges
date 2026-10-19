@@ -1,8 +1,8 @@
 """
 Quem fornece cada produto. Um produto pode ter mais de um fornecedor: o Paulo escolhe na hora do pedido.
 
-Por enquanto a ligação é feita à mão, na tela Fornecedores > Produtos ou pela planilha
-(uma linha por produto e fornecedor; produto com 2 fornecedores aparece em 2 linhas).
+A rotina da noite traz do Cefas quem já entregou cada produto (do_cefas). Fora isso, a ligação é feita
+na tela Fornecedores > Produtos ou pela planilha (uma linha por produto e fornecedor).
 """
 import csv
 import io
@@ -40,12 +40,39 @@ def escolhidos(base, semana):
     # Em ordem de semana: o dict fica com a escolha mais recente até esta semana
     anteriores = dict(base.execute("SELECT codprod, fornecedor_id FROM escolha_fornecedor WHERE semana <= ? ORDER BY semana",
                                    (semana.isoformat(),)))
+    # Sem escolha anterior: o último que entregou no Cefas; sem esse, o 1º em ordem alfabética
+    ultimo = dict(base.execute("""SELECT c.codprod, f.id FROM cefas_fornecedores c JOIN fornecedores f ON f.nome = c.nome
+                                  ORDER BY c.ultima_ent"""))
     escolha = {}
     for codprod, fornecedores in ligados.items():
         ids = [fid for fid, _ in fornecedores]
-        # ponytail: sem escolha anterior vai o 1º em ordem alfabética; trocar pelo último que entregou quando vier do Cefas
-        escolha[codprod] = anteriores.get(codprod) if anteriores.get(codprod) in ids else ids[0]
+        escolha[codprod] = next((f for f in (anteriores.get(codprod), ultimo.get(codprod)) if f in ids), ids[0])
     return escolha, ligados
+
+
+def do_cefas(base, cadastro, entregas):
+    """Liga os produtos a quem os entregou no Cefas. Devolve quantas ligações são novas.
+    cadastro = {codfornec: (nome, contato, telefone, email)}; entregas = [(codprod, codfornec, nº da última entrada)].
+    Cada par só é ligado na 1ª vez que aparece: o que o comprador tirou na tela não volta na noite seguinte.
+    Fornecedor com o mesmo nome de um já cadastrado é o mesmo; contato digitado à mão não é trocado."""
+    # ponytail: casa pelo nome; se o comprador renomear um fornecedor do Cefas, o próximo produto novo dele
+    # recria o nome antigo. Guardar o codfornec em fornecedores se isso acontecer.
+    produtos = {c for c, in base.execute("SELECT codprod FROM produtos")}
+    entregas = [(c, f, n) for c, f, n in entregas if c in produtos and f in cadastro]
+    vistos = set(base.execute("SELECT codprod, codfornec FROM cefas_fornecedores"))
+    novos = {(c, f) for c, f, _ in entregas} - vistos
+    with base:
+        base.executemany(
+            """INSERT INTO fornecedores (nome, contato, telefone, email) VALUES (?, ?, ?, ?)
+               ON CONFLICT(nome) DO UPDATE SET contato = COALESCE(NULLIF(contato, ''), excluded.contato),
+                   telefone = COALESCE(NULLIF(telefone, ''), excluded.telefone), email = COALESCE(NULLIF(email, ''), excluded.email)""",
+            [cadastro[f] for f in {f for _, f in novos}])
+        base.executemany("INSERT OR IGNORE INTO produto_fornecedores SELECT ?, id FROM fornecedores WHERE nome = ?",
+                         [(c, cadastro[f][0]) for c, f in novos])
+        base.executemany("""INSERT INTO cefas_fornecedores VALUES (?, ?, ?, ?) ON CONFLICT(codprod, codfornec)
+                            DO UPDATE SET nome = excluded.nome, ultima_ent = excluded.ultima_ent""",
+                         [(c, f, cadastro[f][0], n) for c, f, n in entregas])
+    return len(novos)
 
 
 def gravar_escolhas(base, semana, pares):

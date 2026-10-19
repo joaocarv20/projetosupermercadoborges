@@ -41,6 +41,10 @@ CREATE TABLE IF NOT EXISTS produto_fornecedores (                    -- quem for
 CREATE TABLE IF NOT EXISTS escolha_fornecedor (                      -- de quem o comprador pediu cada produto na semana
     semana TEXT NOT NULL, codprod INTEGER NOT NULL, fornecedor_id INTEGER NOT NULL, PRIMARY KEY (semana, codprod)
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS cefas_fornecedores (                      -- quem já entregou cada produto, segundo o Cefas
+    codprod INTEGER NOT NULL, codfornec INTEGER NOT NULL, nome TEXT, ultima_ent INTEGER,  -- ultima_ent: nº da última entrada
+    PRIMARY KEY (codprod, codfornec)
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS usuarios (usuario TEXT PRIMARY KEY, senha_hash TEXT NOT NULL);
 """
 
