@@ -77,6 +77,8 @@ assert "Já existe" in cliente.post("/fornecedores", data={"nome": "Camil"}).tex
 assert 'value="11 9999"' in cliente.get("/fornecedores?editar=1").text
 cliente.post("/fornecedores", data={"id": "1", "nome": "CAMIL ALIMENTOS"})
 cliente.post("/fornecedores", data={"nome": "ATACADO SUL"})
+pagina = cliente.get("/fornecedores?busca=camíl").text                                         # busca sem acento
+assert "CAMIL ALIMENTOS" in pagina and "ATACADO SUL" not in pagina
 
 # Fornecedor por produto: adicionar à família, fornecedor não cadastrado, tirar de um produto, planilha
 ligados = lambda: base.execute("SELECT codprod, f.nome FROM produto_fornecedores JOIN fornecedores f ON f.id = fornecedor_id "

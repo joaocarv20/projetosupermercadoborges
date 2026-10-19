@@ -293,6 +293,9 @@ def familias_planilha():
                     headers={"Content-Disposition": f"attachment; filename=familias-{date.today()}.csv"})
 
 
+MOSTRAR_FORNECEDORES = 50
+
+
 @app.route("/fornecedores", methods=["GET", "POST"])
 def fornecedores():
     base, erro = abrir(), None
@@ -323,11 +326,14 @@ def fornecedores():
                              (request.args.get("editar"),)).fetchone()
         atual = dict(zip(("id", "nome", "contato", "telefone", "email"), linha or ("",) * 5))
 
-    return render_template(
-        "fornecedores.html", editando=atual, erro=erro,
-        fornecedores=base.execute("""SELECT f.id, f.nome, f.contato, f.telefone, f.email, COUNT(pf.codprod)
-                                     FROM fornecedores f LEFT JOIN produto_fornecedores pf ON pf.fornecedor_id = f.id
-                                     GROUP BY f.id ORDER BY f.nome""").fetchall())
+    # Com os do Cefas são centenas: sem busca, só os que fornecem mais produtos (a página inteira fica lenta)
+    todos = base.execute("""SELECT f.id, f.nome, f.contato, f.telefone, f.email, COUNT(pf.codprod)
+                            FROM fornecedores f LEFT JOIN produto_fornecedores pf ON pf.fornecedor_id = f.id
+                            GROUP BY f.id ORDER BY COUNT(pf.codprod) DESC, f.nome""").fetchall()
+    busca = request.args.get("busca", "").strip()
+    achados = [f for f in todos if sem_acento(busca) in sem_acento(" ".join(c or "" for c in f[1:5]))] if busca else todos
+    return render_template("fornecedores.html", editando=atual, erro=erro, busca=busca, total=len(todos),
+                           fornecedores=achados[:MOSTRAR_FORNECEDORES], achados=len(achados))
 
 
 @app.route("/fornecedores/produtos", methods=["GET", "POST"])

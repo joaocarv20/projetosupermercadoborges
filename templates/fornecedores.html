@@ -24,6 +24,15 @@
   {% if editando.id %}<a class="botao discreto" href="{{ url_for('fornecedores') }}">Cancelar</a>{% endif %}
 </form>
 
+<form method="get" class="filtros">
+  <label>Buscar fornecedor <input type="search" name="busca" value="{{ busca }}" placeholder="Nome, contato ou telefone"></label>
+  <button type="submit" class="botao">Buscar</button>
+  {% if busca %}<a class="botao discreto" href="{{ url_for('fornecedores') }}">Limpar</a>{% endif %}
+</form>
+{% if achados > fornecedores|length %}
+<p class="explicacao">Mostrando os {{ fornecedores|length }} que fornecem mais produtos, de {{ achados }}{{ ' encontrados' if busca }}. Use a busca para achar os outros.</p>
+{% elif busca %}<p class="explicacao">{{ achados }} de {{ total }} fornecedores.</p>{% endif %}
+
 <table class="tabela">
   <thead>
     <tr><th>Fornecedor</th><th>Contato</th><th class="num">Produtos</th><th></th></tr>
@@ -43,7 +52,7 @@
       </div></td>
     </tr>
     {% else %}
-    <tr><td colspan="4" class="vazio">Nenhum fornecedor cadastrado ainda.</td></tr>
+    <tr><td colspan="4" class="vazio">{{ 'Nenhum fornecedor encontrado.' if busca else 'Nenhum fornecedor cadastrado ainda.' }}</td></tr>
     {% endfor %}
   </tbody>
 </table>
