@@ -15,6 +15,8 @@ import os
 import sys
 from datetime import date, datetime, timedelta
 
+import oracledb
+
 from sistema import familias
 from sistema import fornecedores as forn
 from sistema.base_local import abrir
@@ -124,7 +126,10 @@ def main():
     carregar_departamentos(ora, base, schema)
     carregar_produtos(ora, base, schema)
     carregar_vendas(ora, base, schema, inicio)
-    carregar_fornecedores(ora, base, schema)
+    try:
+        carregar_fornecedores(ora, base, schema)
+    except oracledb.DatabaseError as erro:  # ORA-00942: falta GRANT SELECT em JP.FORNECEDOR / JP.DADOSTEMPENT
+        print(f"  Fornecedores não importados (as vendas foram): {str(erro).splitlines()[0]}")
     ora.close()
     total, dias, produtos = base.execute("SELECT SUM(valor), COUNT(DISTINCT data), COUNT(DISTINCT codprod) FROM vendas_diarias").fetchone()
     print(f"\nPronto! Base local: {dias} dias, {produtos} produtos com venda, {reais(total)} no total.")
