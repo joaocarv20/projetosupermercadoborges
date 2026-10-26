@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS calendario (
 );
 CREATE TABLE IF NOT EXISTS sugestoes (                               -- o que o sistema sugeriu x o que o comprador comprou
     semana TEXT NOT NULL, familia_id INTEGER NOT NULL, qtd_sugerida REAL, qtd_final REAL,
+    fim TEXT,                                                        -- semana = 1º dia do período; fim = último
     PRIMARY KEY (semana, familia_id)
 );
 CREATE TABLE IF NOT EXISTS alertas (                                 -- status: verificar, comprado, descontinuado
@@ -53,4 +54,10 @@ def abrir():
     ARQUIVO_BASE.parent.mkdir(exist_ok=True)
     base = sqlite3.connect(ARQUIVO_BASE)
     base.executescript(ESQUEMA)
+    try:  # base de antes de 26/10: sugestão só por semana, sem a coluna fim
+        base.execute("ALTER TABLE sugestoes ADD COLUMN fim TEXT")
+        with base:
+            base.execute("UPDATE sugestoes SET fim = date(semana, '+6 days')")
+    except sqlite3.OperationalError:  # a coluna já existe
+        pass
     return base

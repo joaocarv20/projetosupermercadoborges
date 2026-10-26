@@ -18,15 +18,16 @@ dias = [(semana + timedelta(days=i)).isoformat() for i in range(7)]
 base.executemany("INSERT INTO vendas_diarias VALUES (?, ?, ?, 0)",
                  [(d, 1, 10) for d in dias] + [(d, 2, 10) for d in dias] + [(d, 3, 4) for d in dias[:5]]
                  + [("2026-10-12", 1, 10)])
-base.executemany("INSERT INTO sugestoes VALUES (?, ?, ?, ?)", [
+fim_de = lambda s: (date.fromisoformat(s) + timedelta(days=6)).isoformat()
+base.executemany("INSERT INTO sugestoes (semana, familia_id, qtd_sugerida, qtd_final, fim) VALUES (?, ?, ?, ?, ?)", [(*r, fim_de(r[0])) for r in [
     (semana.isoformat(), 1, 70, 75),     # vendeu 70: sistema acertou, comprador mudou para pior
     (semana.isoformat(), 2, 70, 90),     # vendeu 90 (dois produtos): sistema errou -22%, comprador acertou
     (semana.isoformat(), 3, 10, None),   # não vendeu nada; comprador não revisou
     (semana.isoformat(), 4, 1, None),    # sugeriu 1, não vendeu: dentro de 1 unidade, conta como acerto
-    (aberta.isoformat(), 1, 70, None)])  # semana ainda não terminou
+    (aberta.isoformat(), 1, 70, None)]])  # semana ainda não terminou
 base.commit()
 
-assert acomp.semanas_fechadas(base) == [semana]
+assert acomp.semanas_fechadas(base) == [(semana, semana + timedelta(days=6))]
 linhas = {l["nome"]: l for l in acomp.comparar(base, semana)}
 assert [l["nome"] for l in acomp.comparar(base, semana)] == ["CRAVO", "SAGU", "FEIJAO", "ARROZ"]  # não vendeu, maior erro, ...
 assert linhas["ARROZ"]["acertou"] and linhas["ARROZ"]["erro"] == 0 and linhas["ARROZ"]["mais_perto"] == "sistema"

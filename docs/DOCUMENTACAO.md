@@ -55,11 +55,11 @@ fornecedor. Sem banco para instalar e sem Docker.
 | `familias` | Nome da família (ex.: SAB PALMOLIVE 85G) | Regra automática + ajuste manual |
 | `vendas_diarias` | Data, produto, quantidade, valor (1 linha por produto por dia) | Cefas, resumido |
 | `calendario` | Tipo do dia, feriado, marca de dia atípico | Gerado pelo sistema |
-| `sugestoes` | Semana, família, quantidade sugerida, quantidade final do comprador | Gerado + tela |
+| `sugestoes` | Período (`semana` = 1º dia, `fim` = último), família, quantidade sugerida, quantidade final do comprador. Um período por dia de início | Gerado + tela |
 | `alertas` | Produto, situação marcada (verificar, comprado, descontinuado) | Tela |
 | `fornecedores` | Nome, contato, telefone, e-mail | Cefas + tela |
 | `produto_fornecedores` | Quem fornece cada produto (pode ser mais de um) | Cefas + tela + planilha |
-| `escolha_fornecedor` | De quem o comprador pediu cada produto em cada semana | Tela |
+| `escolha_fornecedor` | De quem o comprador pediu cada produto em cada compra (pelo 1º dia do período) | Tela |
 | `cefas_fornecedores` | Pares produto-fornecedor já vistos no Cefas e o nº da última entrada | Cefas |
 | `usuarios` | Usuário e senha criptografada | `python app.py usuario <nome>` |
 
@@ -76,12 +76,12 @@ com usuário e senha. A tela principal é a Sugestão de compra, aberta toda seg
 
 | Tela | Para quê | O que o comprador faz nela |
 | --- | --- | --- |
-| Sugestão de compra | Quanto comprar de cada família para a semana seguinte, e de quem | Escolhe a semana; filtra por departamento, busca ou fornecedor; abre a família para ver quanto comprar de cada sabor; corrige a quantidade final; escolhe o fornecedor de cada produto; salva, imprime ou **manda o pedido do fornecedor pelo WhatsApp** |
+| Sugestão de compra | Quanto comprar de cada família para vender num período (de um dia a outro, até 31 dias), e de quem | Escolhe as datas De e Até (sem escolha, a semana seguinte); filtra por departamento, busca ou fornecedor; abre a família para ver quanto comprar de cada sabor; corrige a quantidade final; escolhe o fornecedor de cada produto; salva, imprime ou **manda o pedido do fornecedor pelo WhatsApp** |
 | Lista de alerta | Produtos que costumam vender e pararam (provável falta na prateleira) | Marca cada um como "Verificando", "Já comprei" ou "Descontinuado" |
 | Famílias de produto | Conferir e corrigir como os sabores foram agrupados | Move um produto para outra família ou para uma nova; baixa a planilha, corrige no Excel e envia de volta |
 | Fornecedores > Cadastro | Fornecedores, contato e telefone do WhatsApp | Cadastra, edita, exclui; busca por nome, contato ou telefone (sem busca, mostra os 50 que fornecem mais produtos) |
 | Fornecedores > Produtos | Quem fornece cada produto | Acrescenta um fornecedor à família inteira; tira de um produto com o ×; filtra "só sem fornecedor"; ajusta pela planilha |
-| Acompanhamento | Medir se a sugestão acerta | Escolhe uma semana já fechada; vê o acerto geral, por departamento e família por família |
+| Acompanhamento | Medir se a sugestão acerta | Escolhe um período salvo já fechado; vê o acerto geral, por departamento e família por família |
 | Análise de vendas | Vendas por departamento num período | Escolhe as datas; compara com o período anterior e com o ano passado; gráfico por semana |
 | Calendário de dias quentes | Ver os dias de salário, recarga, semana fraca e feriado | Navega pelos meses (por enquanto só 2026) |
 
@@ -115,7 +115,13 @@ com dia 1 ou 20, "recarga"; com 3 dias ou mais fracos, "fraca"; senão, "meio do
 2. Soma o que cada família vendeu em cada uma delas.
 3. Sugere a mediana dessas 6 somas. Semanas antes da 1ª venda de um produto novo não contam.
 4. Arredonda: unidades para cima, quilos com 1 casa.
-5. Mostra ao lado a mediana sem arredondar e a venda da mesma semana do ano passado.
+5. Mostra ao lado a mediana sem arredondar e a venda dos mesmos dias do ano passado (52 semanas antes).
+
+**Período que não é de segunda a domingo** (ex.: quarta 21/10 a sexta 30/10): cada semana que o período toca entra
+com a sua sugestão (passos 1 a 3, com o tipo dela) vezes a parte dela que cai no período. A parte é o peso dos dias
+escolhidos na venda da semana, das últimas 12 semanas do mercado inteiro (nos dados de 06/10: domingo 25,6%, sábado
+19,2%, terça 9,7%). Semana inteira dentro do período conta 1, então de segunda a domingo o resultado é o mesmo de antes.
+Os sabores são repartidos da mesma forma, e só depois a família é arredondada.
 
 O cálculo é guardado até a base mudar (extrator, quantidade salva, alerta marcado): só a 1ª tela depois de uma
 mudança espera alguns segundos.
@@ -189,7 +195,7 @@ Todos rodam da pasta principal do projeto (no mercado: `.venv\Scripts\python` no
 | `python -m sistema.familias agrupar` | Refaz todas as famílias pela regra (desfaz ajustes manuais) |
 | `python -m sistema.familias exportar arquivo.csv` / `importar arquivo.csv` | Famílias pela planilha |
 | `python -m sistema.motor AAAA-MM-DD` | Sugestão de uma semana no terminal |
-| `python -m sistema.acompanhamento AAAA-MM-DD` | Acerto de uma semana no terminal |
+| `python -m sistema.acompanhamento AAAA-MM-DD` | Acerto do período salvo que começa na data, no terminal |
 | `python -m ferramentas.conferir_vendas AAAA-MM-DD AAAA-MM-DD` | Total de um período, para conferir com o Cefas |
 | `python -m testes.test_app` (e os demais `testes/test_*.py`) | Testes automáticos |
 
@@ -267,6 +273,7 @@ Mais recente primeiro. Cada mudança no sistema ganha uma linha aqui.
 
 | Data | Mudança | Detalhe |
 | --- | --- | --- |
+| 26/10 | Sugestão por período (branch `sugestao-periodo`, em teste) | Pedido do Paulo: escolher de um dia a outro (até 31 dias) em vez da semana fixa; cada semana entra pela parte dos dias, pelo peso de cada dia da semana; coluna `fim` em `sugestoes` (criada sozinha nas bases antigas); WhatsApp diz "Para vender de ..." |
 | 26/10 | Sugestão esconde pouca saída | Famílias com sugestão abaixo de 2 un saem da lista do departamento; caixa "Mostrar também os de pouca saída" |
 | 20/10 | Documentação em Markdown | Este arquivo substitui o `.docx` de 07/10 e passa a ser atualizado a cada mudança |
 | 19/10 | Cadastro de fornecedores com busca | Com os ~600 fornecedores do Cefas a tela ficou lenta: sem busca, mostra os 50 que fornecem mais produtos |

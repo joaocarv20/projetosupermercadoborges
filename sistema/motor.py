@@ -5,6 +5,9 @@ Para a semana-alvo (segunda a domingo), pega as últimas 6 semanas do MESMO TIPO
 meio do mês, fraca ou feriado), soma as vendas de cada família em cada uma e sugere a mediana.
 A sugestão fica na unidade do produto (unidades ou kg), sem arredondar para caixa: o comprador converte.
 
+Período diferente de uma semana (de qualquer dia a qualquer dia): gerar_periodo() reparte a sugestão de cada
+semana que o período toca pelo peso de cada dia da semana na venda.
+
 Como rodar:  python -m sistema.motor              sugestão da próxima segunda-feira (a compra de hoje)
              python -m sistema.motor 2026-10-12   sugestão de outra semana (a data precisa ser uma segunda)
 """
@@ -36,12 +39,12 @@ def semanas_equivalentes(base, segunda):
     return achadas
 
 
-def vendas_da_semana(base, segunda):
-    """{(familia_id, codprod): quantidade vendida} de segunda a domingo."""
+def vendas_entre(base, inicio, fim):
+    """{(familia_id, codprod): quantidade vendida} de inicio a fim, os dois incluídos."""
     linhas = base.execute(
         """SELECT p.familia_id, v.codprod, SUM(v.qtd) FROM vendas_diarias v
            JOIN produtos p ON p.codprod = v.codprod WHERE v.data BETWEEN ? AND ?
-           GROUP BY p.familia_id, v.codprod""", (segunda.isoformat(), (segunda + timedelta(days=6)).isoformat()))
+           GROUP BY p.familia_id, v.codprod""", (inicio.isoformat(), fim.isoformat()))
     return {(f, c): q for f, c, q in linhas}
 
 
@@ -72,10 +75,8 @@ def gerar(base, segunda):
     semanas = semanas_equivalentes(base, segunda)
     if not semanas:
         return []
-    vendas = {s: vendas_da_semana(base, s) for s in semanas}
-    passado = {}  # mesma semana do ano passado, somada por família
-    for (familia, _), qtd in vendas_da_semana(base, segunda - timedelta(weeks=52)).items():
-        passado[familia] = passado.get(familia, 0) + qtd
+    vendas = {s: vendas_entre(base, s, s + timedelta(days=6)) for s in semanas}
+    passado = ano_passado(base, segunda, segunda + timedelta(days=6))
     primeira_venda = dict(base.execute(
         "SELECT p.familia_id, MIN(v.data) FROM vendas_diarias v JOIN produtos p ON p.codprod = v.codprod GROUP BY p.familia_id"))
     cadastro = {f: (nome, unidade, depto) for f, nome, unidade, depto in base.execute(
@@ -110,14 +111,77 @@ def gerar(base, segunda):
     return sorted(resultado, key=lambda r: r["nome"])
 
 
-def gravar(base, segunda, linhas):
-    """Grava a sugestão na tabela sugestoes. A quantidade final que o comprador já digitou é preservada."""
+def ano_passado(base, inicio, fim):
+    """{familia_id: venda} nos mesmos dias da semana, 52 semanas antes."""
+    passado = {}
+    for (familia, _), qtd in vendas_entre(base, inicio - timedelta(weeks=52), fim - timedelta(weeks=52)).items():
+        passado[familia] = passado.get(familia, 0) + qtd
+    return passado
+
+
+def peso_dos_dias(base):
+    """[segunda, ..., domingo]: quanto cada dia da semana vende, em fração da semana (soma 1).
+    Das últimas 12 semanas com venda, o mercado inteiro."""
+    # ponytail: um peso só para o mercado todo; se bebida (que pesa mais no fim de semana) errar nos períodos
+    # quebrados, calcular por departamento
+    ultimo = base.execute("SELECT MAX(data) FROM vendas_diarias").fetchone()[0]
+    if not ultimo:
+        return [1 / 7] * 7
+    ultimo = date.fromisoformat(ultimo)
+    venda = [0] * 7
+    for dia, qtd in base.execute("SELECT data, SUM(qtd) FROM vendas_diarias WHERE data > ? GROUP BY data",
+                                 ((ultimo - timedelta(weeks=12)).isoformat(),)):
+        venda[date.fromisoformat(dia).weekday()] += qtd
+    total = sum(venda)
+    return [v / total for v in venda] if total else [1 / 7] * 7
+
+
+def partes_do_periodo(base, inicio, fim):
+    """{segunda: parte da venda daquela semana que cai no período}. Semana inteira dentro = 1."""
+    dias = {}
+    for i in range((fim - inicio).days + 1):
+        d = inicio + timedelta(days=i)
+        dias.setdefault(d - timedelta(days=d.weekday()), []).append(d.weekday())
+    peso = peso_dos_dias(base)
+    return {s: 1 if len(ds) == 7 else sum(peso[d] for d in ds) for s, ds in dias.items()}
+
+
+def gerar_periodo(base, inicio, fim, gerar_semana=gerar):
+    """Sugestão para vender de `inicio` a `fim` (qualquer dia, os dois incluídos), no formato de gerar().
+    Cada semana que o período toca entra com a sua sugestão vezes a parte dela que cai no período: de quarta a
+    sexta da semana seguinte = o fim de uma semana + o começo da outra, cada uma com o seu tipo (salário, meio...).
+    De segunda a domingo dá o mesmo que gerar(). gerar_semana(base, segunda) permite usar a sugestão guardada."""
+    familias = {}
+    for segunda, parte in partes_do_periodo(base, inicio, fim).items():
+        for l in gerar_semana(base, segunda):
+            f = familias.setdefault(l["familia_id"], {**l, "mediana": 0, "qtds": {}})
+            f["mediana"] += l["mediana"] * parte
+            f["semanas_usadas"] = min(f["semanas_usadas"], l["semanas_usadas"])
+            for p in l["produtos"]:
+                f["qtds"][(p["codprod"], p["descricao"])] = f["qtds"].get((p["codprod"], p["descricao"]), 0) + p["qtd"] * parte
+    passado = ano_passado(base, inicio, fim)
+    resultado = []
+    for familia, f in familias.items():
+        qtds = f.pop("qtds")
+        soma = sum(qtds.values()) or 1
+        resultado.append({
+            **f, "mediana": round(f["mediana"], 3), "sugestao": arredondar(f["mediana"], f["unidade"]),
+            "ano_passado": arredondar(passado.get(familia, 0), f["unidade"]),
+            "produtos": [{"codprod": c, "descricao": d, "qtd": round(q, 3), "pct": q / soma * 100}
+                         for (c, d), q in sorted(qtds.items(), key=lambda x: -x[1])]})
+    return sorted(resultado, key=lambda r: r["nome"])
+
+
+def gravar(base, inicio, fim, linhas):
+    """Grava a sugestão do período na tabela sugestoes. Fica um período por dia de início: salvar outro fim
+    para o mesmo início troca o anterior. A quantidade final que o comprador já digitou é preservada."""
     with base:
-        base.execute("DELETE FROM sugestoes WHERE semana = ? AND qtd_final IS NULL", (segunda.isoformat(),))
+        base.execute("DELETE FROM sugestoes WHERE semana = ? AND (qtd_final IS NULL OR fim IS NOT ?)",
+                     (inicio.isoformat(), fim.isoformat()))
         base.executemany(
-            "INSERT INTO sugestoes (semana, familia_id, qtd_sugerida) VALUES (?, ?, ?) "
+            "INSERT INTO sugestoes (semana, fim, familia_id, qtd_sugerida) VALUES (?, ?, ?, ?) "
             "ON CONFLICT(semana, familia_id) DO UPDATE SET qtd_sugerida = excluded.qtd_sugerida",
-            [(segunda.isoformat(), l["familia_id"], l["sugestao"]) for l in linhas])
+            [(inicio.isoformat(), fim.isoformat(), l["familia_id"], l["sugestao"]) for l in linhas])
 
 
 def proxima_segunda(hoje):
@@ -131,5 +195,5 @@ if __name__ == "__main__":
         sys.exit("A data precisa ser uma segunda-feira.")
     base = abrir()
     linhas = gerar(base, segunda)
-    gravar(base, segunda, linhas)
+    gravar(base, segunda, segunda + timedelta(days=6), linhas)
     print(f"Semana de {segunda:%d/%m/%Y} ({tipo_semana(segunda)}): {len(linhas)} famílias com sugestão.")

@@ -11,25 +11,23 @@
 {%- endmacro %}
 
 <header class="cabecalho">
-  <h1>Sugestão de compra da semana</h1>
+  <h1>Sugestão de compra</h1>
   <p class="semana-alvo">
-    Semana: <strong>{{ rotulo }}</strong>
-    <span class="etiqueta {{ tipo.cor }}">{{ tipo.nome }}</span>
+    Para vender de <strong>{{ rotulo }}</strong> ({{ dias }} dia{{ 's' if dias > 1 }})
+    {% for t in tipos %}<span class="etiqueta {{ t.cor }}">{{ t.nome }}</span>{% endfor %}
   </p>
   {% if obs %}<p class="obs">Feriado: {{ obs }}</p>{% endif %}
-  <p class="explicacao">Mediana das últimas 6 semanas do mesmo tipo. A sugestão está em unidades ou quilos: converta para caixas na hora de pedir.
+  {% if aviso %}<p class="obs nao-imprimir">{{ aviso }}</p>{% endif %}
+  <p class="explicacao">Mediana das últimas 6 semanas do mesmo tipo. Período que não é de segunda a domingo: cada semana
+    entra com a parte dos dias escolhidos, pelo quanto cada dia da semana costuma vender.
+    A sugestão está em unidades ou quilos: converta para caixas na hora de pedir.
     Clique numa família para ver quanto comprar de cada sabor e de qual fornecedor (sai na impressão).</p>
 </header>
 
 <!-- Filtros: enviados pela URL (GET), sem JavaScript -->
 <form class="filtros nao-imprimir" method="get">
-  <label>Semana
-    <select name="semana">
-      {% for s, r, nome in semanas %}
-        <option value="{{ s.isoformat() }}" {{ 'selected' if s == semana }}>{{ r }} – {{ nome }}</option>
-      {% endfor %}
-    </select>
-  </label>
+  <label>De <input type="date" name="inicio" value="{{ inicio.isoformat() }}" required></label>
+  <label>Até <input type="date" name="fim" value="{{ fim.isoformat() }}" required></label>
   <label>Departamento
     <select name="departamento">
       {% for d in departamentos %}
@@ -73,7 +71,7 @@
       <th>Departamento</th>
       <th class="num">Sugestão de compra</th>
       <th class="num">Mediana histórica</th>
-      <th class="num">Mesma semana ano passado</th>
+      <th class="num">Mesmos dias ano passado</th>
       <th class="num">Quantidade final</th>
     </tr>
   </thead>

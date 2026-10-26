@@ -58,13 +58,46 @@ base.execute("INSERT INTO calendario (data, tipo, atipico) VALUES (?, 'meio', 1)
 depois = motor.semanas_equivalentes(base, alvo)
 assert equivalentes[0] not in depois and len(depois) == 6
 
-# gravar: o que o comprador digitou (qtd_final) sobrevive a uma nova sugestão
+# --- período de qualquer dia a qualquer dia ---
+peso = motor.peso_dos_dias(base)
+assert len(peso) == 7 and round(sum(peso), 9) == 1
+semana_toda = {x["nome"]: x for x in motor.gerar_periodo(base, alvo, alvo + timedelta(days=6))}
+for x in motor.gerar(base, alvo):                                             # de segunda a domingo = a semana de sempre
+    y = semana_toda[x["nome"]]
+    assert (y["sugestao"], y["mediana"], y["ano_passado"], y["semanas_usadas"]) == (
+        x["sugestao"], x["mediana"], x["ano_passado"], x["semanas_usadas"]), x["nome"]
+    assert [(p["codprod"], p["qtd"]) for p in y["produtos"]] == [(p["codprod"], p["qtd"]) for p in x["produtos"]]
+# de sábado 10/10 (semana de salário, 140 por semana) a terça 13/10 (semana do feriado, 56): cada uma com a sua parte
+import math
+r = {x["nome"]: x for x in motor.gerar_periodo(base, date(2026, 10, 10), date(2026, 10, 13))}
+assert r["ARROZ"]["sugestao"] == math.ceil(round(140 * (peso[5] + peso[6]) + 56 * (peso[0] + peso[1]), 6))
+assert r["ARROZ"]["ano_passado"] == sum(VENDA_DIA[tipo_semana(d - timedelta(days=d.weekday()))]
+                                        for d in (date(2025, 10, 11) + timedelta(days=i) for i in range(4)))
+assert [p["descricao"] for p in r["DETERGENTE"]["produtos"]] == ["DETERGENTE LIMAO", "DETERGENTE COCO"]
+assert round(r["DETERGENTE"]["produtos"][0]["pct"], 6) == round(200 / 3, 6)  # 10 de 15 por dia
+assert motor.partes_do_periodo(base, alvo, alvo + timedelta(days=13)) == {alvo: 1, alvo + timedelta(weeks=1): 1}
+
+# gravar: o que o comprador digitou (qtd_final) sobrevive a uma nova sugestão do mesmo período
+fim = alvo + timedelta(days=6)
 linhas = motor.gerar(base, alvo)
-motor.gravar(base, alvo, linhas)
+motor.gravar(base, alvo, fim, linhas)
 base.execute("UPDATE sugestoes SET qtd_final = 150 WHERE familia_id = 1"); base.commit()
-motor.gravar(base, alvo, linhas)
-assert base.execute("SELECT qtd_sugerida, qtd_final FROM sugestoes WHERE familia_id = 1").fetchone() == (140, 150)
+motor.gravar(base, alvo, fim, linhas)
+assert base.execute("SELECT qtd_sugerida, qtd_final, fim FROM sugestoes WHERE familia_id = 1").fetchone() == (140, 150, fim.isoformat())
 assert base.execute("SELECT COUNT(*) FROM sugestoes").fetchone() == (len(linhas),)
+# outro fim para o mesmo início troca o período salvo (fica um período por dia de início)
+motor.gravar(base, alvo, alvo + timedelta(days=2), motor.gerar_periodo(base, alvo, alvo + timedelta(days=2)))
+assert base.execute("SELECT qtd_final, fim FROM sugestoes WHERE familia_id = 1").fetchone() == (None, "2026-10-07")
+
+# base de antes do período: a coluna fim é criada e preenchida com o domingo da semana
+import sqlite3
+antiga = Path(tempfile.mkdtemp()) / "antiga.db"
+c = sqlite3.connect(antiga)
+c.execute("CREATE TABLE sugestoes (semana TEXT NOT NULL, familia_id INTEGER NOT NULL, qtd_sugerida REAL, qtd_final REAL, PRIMARY KEY (semana, familia_id))")
+c.execute("INSERT INTO sugestoes VALUES ('2026-10-05', 1, 70, 75)"); c.commit(); c.close()
+base_local.ARQUIVO_BASE = antiga
+assert base_local.abrir().execute("SELECT fim FROM sugestoes").fetchone() == ("2026-10-11",)
+assert base_local.abrir().execute("SELECT fim FROM sugestoes").fetchone() == ("2026-10-11",)   # 2ª vez não quebra
 
 assert motor.proxima_segunda(date(2026, 10, 5)) == date(2026, 10, 12)  # hoje é segunda: a compra é para a semana seguinte
 assert motor.proxima_segunda(date(2026, 10, 9)) == date(2026, 10, 12)

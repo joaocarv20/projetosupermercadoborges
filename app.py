@@ -43,6 +43,9 @@ TIPOS_SEMANA = {
     "feriado": {"nome": "Semana com feriado", "cor": "roxo"},
 }
 
+# Sugestão: período mais longo que isso fica cortado (cada semana a mais é uma conta de segundos)
+PERIODO_MAXIMO = 31
+
 STATUS_ALERTA = {"verificar": "Verificando", "comprado": "Já comprei", "descontinuado": "Descontinuado"}
 
 
@@ -83,8 +86,19 @@ def com_cache(funcao, *args):
     return _guardado(funcao, base_local.ARQUIVO_BASE.stat().st_mtime_ns, *args)
 
 
-def rotulo_semana(segunda):
-    return f"{segunda:%d/%m} a {segunda + timedelta(days=6):%d/%m/%Y}"
+def rotulo_periodo(inicio, fim):
+    return f"{inicio:%d/%m} a {fim:%d/%m/%Y}"
+
+
+def tipos_do_periodo(inicio, fim):
+    """Tipo de cada semana (segunda a domingo) que o período toca, sem repetir."""
+    segundas = {inicio + timedelta(days=i - (inicio + timedelta(days=i)).weekday()) for i in range((fim - inicio).days + 1)}
+    return [TIPOS_SEMANA[t] for t in dict.fromkeys(tipo_semana(s) for s in sorted(segundas))]
+
+
+def sugestao_do_periodo(base, inicio, fim):
+    """A sugestão de cada semana fica guardada (leva segundos); juntar as semanas no período é rápido."""
+    return motor.gerar_periodo(base, inicio, fim, lambda _, segunda: com_cache(motor.gerar, segunda))
 
 
 # ---------------------------------------------------------------------------
@@ -133,23 +147,28 @@ def sair():
 # ---------------------------------------------------------------------------
 @app.route("/sugestao", methods=["GET", "POST"])
 def sugestao():
-    # Semanas do seletor: a da compra de hoje e as 3 seguintes
-    primeira = motor.proxima_segunda(date.today())
-    semanas = [primeira + timedelta(weeks=i) for i in range(4)]
+    # Período de venda que a compra cobre: de qualquer dia a qualquer dia. Sem escolha, a semana da compra de hoje.
+    padrao = motor.proxima_segunda(date.today())
     try:
-        semana = date.fromisoformat(request.args.get("semana", ""))
+        inicio = date.fromisoformat(request.args.get("inicio", ""))
     except ValueError:
-        semana = primeira
-    if semana.weekday() != 0:
-        semana = primeira
-    if semana not in semanas:
-        semanas.append(semana)
+        inicio = padrao
+    try:
+        fim = date.fromisoformat(request.args.get("fim", ""))
+    except ValueError:
+        fim = inicio + timedelta(days=6)
+    inicio, fim = min(inicio, fim), max(inicio, fim)
+    aviso = None
+    if (fim - inicio).days >= PERIODO_MAXIMO:
+        fim = inicio + timedelta(days=PERIODO_MAXIMO - 1)
+        aviso = f"O período vai até {PERIODO_MAXIMO} dias: ficou até {fim:%d/%m/%Y}."
+    semana = inicio  # a sugestão salva e o fornecedor escolhido ficam pelo 1º dia do período
 
     base = abrir()
-    linhas = com_cache(motor.gerar, semana)
+    linhas = sugestao_do_periodo(base, inicio, fim)
 
     if request.method == "POST":  # "Salvar": grava a sugestão e as quantidades finais digitadas
-        motor.gravar(base, semana, linhas)
+        motor.gravar(base, inicio, fim, linhas)
         finais = []
         for l in linhas:
             texto = request.form.get(f"qtd_{l['familia_id']}", "").strip().replace(",", ".")
@@ -168,10 +187,10 @@ def sugestao():
             base.executemany("UPDATE sugestoes SET qtd_final = ? WHERE semana = ? AND familia_id = ?", finais)
             forn.gravar_escolhas(base, semana, escolhas)
         if request.form.get("enviar", "").isdigit():  # "Mandar pedido": já salvou, agora abre o WhatsApp
-            return mandar_pedido(base, semana, linhas, int(request.form["enviar"])) or redirect(request.full_path)
+            return mandar_pedido(base, inicio, fim, linhas, int(request.form["enviar"])) or redirect(request.full_path)
         return redirect(request.full_path)
 
-    salvas = quantidades_salvas(base, semana)
+    salvas = quantidades_salvas(base, inicio, fim)
     # Um departamento por vez: a lista inteira passa de 5 mil famílias e trava o navegador.
     # A busca procura em todos os departamentos.
     departamentos = sorted({l["departamento"] or "SEM DEPARTAMENTO" for l in linhas})
@@ -215,30 +234,29 @@ def sugestao():
             "concentrado": len(l["produtos"]) > 1 and max(p["pct"] for p in l["produtos"]) >= 80,
         })
 
-    dias = [semana + timedelta(days=i) for i in range(7)]
+    dias = [inicio + timedelta(days=i) for i in range((fim - inicio).days + 1)]
     obs = ", ".join(f"{feriado(d)} em {d:%d/%m}" for d in dias if feriado(d))
     return render_template(
-        "sugestao.html", semana=semana, rotulo=rotulo_semana(semana), tipo=TIPOS_SEMANA[tipo_semana(semana)],
-        obs=obs, semanas=[(s, rotulo_semana(s), TIPOS_SEMANA[tipo_semana(s)]["nome"]) for s in semanas],
-        familias=familias, departamentos=departamentos, departamento=departamento, busca=busca,
+        "sugestao.html", inicio=inicio, fim=fim, dias=len(dias), rotulo=rotulo_periodo(inicio, fim),
+        tipos=tipos_do_periodo(inicio, fim), obs=obs, aviso=aviso, familias=familias, departamentos=departamentos, departamento=departamento, busca=busca,
         fornecedores=lista_fornecedores, fornecedor=fornecedor, todas=todas, escondidas=escondidas,
         minima=SUGESTAO_MINIMA,
         escolhido=next((f for f in lista_fornecedores if f[0] == fornecedor), None))
 
 
-def quantidades_salvas(base, semana):
-    """{familia_id: quantidade final que o comprador salvou}."""
-    return dict(base.execute("SELECT familia_id, qtd_final FROM sugestoes WHERE semana = ? AND qtd_final IS NOT NULL",
-                             (semana.isoformat(),)))
+def quantidades_salvas(base, inicio, fim):
+    """{familia_id: quantidade final que o comprador salvou para o período}."""
+    return dict(base.execute("SELECT familia_id, qtd_final FROM sugestoes WHERE semana = ? AND fim = ? AND qtd_final IS NOT NULL",
+                             (inicio.isoformat(), fim.isoformat())))
 
 
-def mandar_pedido(base, semana, linhas, fornecedor):
+def mandar_pedido(base, inicio, fim, linhas, fornecedor):
     """Redireciona para o WhatsApp com o que vai para o fornecedor: a quantidade salva de cada família,
     repartida pelos sabores como na tela, só dos sabores em que ele é o escolhido. None se não há nada a pedir."""
     linha = base.execute("SELECT telefone FROM fornecedores WHERE id = ?", (fornecedor,)).fetchone()
     if not linha:
         return None
-    salvas, (escolha, _) = quantidades_salvas(base, semana), forn.escolhidos(base, semana)
+    salvas, (escolha, _) = quantidades_salvas(base, inicio, fim), forn.escolhidos(base, inicio)
     itens = []
     for l in linhas:
         final = salvas.get(l["familia_id"], l["sugestao"])
@@ -246,7 +264,7 @@ def mandar_pedido(base, semana, linhas, fornecedor):
         for p, qtd in zip(l["produtos"], motor.dividir(final, [p["qtd"] for p in l["produtos"]], l["unidade"])):
             if qtd > 0 and escolha.get(p["codprod"]) == fornecedor:
                 itens.append((p["descricao"], f"{numero_br(qtd, casas)} {un}"))
-    return redirect(forn.link_pedido(linha[0], rotulo_semana(semana), sorted(itens))) if itens else None
+    return redirect(forn.link_pedido(linha[0], rotulo_periodo(inicio, fim), sorted(itens))) if itens else None
 
 
 @app.route("/alertas", methods=["GET", "POST"])
@@ -398,8 +416,9 @@ def acompanhamento():
         semana = date.fromisoformat(request.args.get("semana", ""))
     except ValueError:
         semana = None
-    if semana not in semanas:
-        semana = semanas[0] if semanas else None
+    periodos = dict(semanas)  # {início: fim}
+    if semana not in periodos:
+        semana = semanas[0][0] if semanas else None
     linhas = acomp.comparar(base, semana) if semana else []
 
     # Mesmo filtro da sugestão: um departamento por vez, a busca procura em todos
@@ -413,8 +432,8 @@ def acompanhamento():
                 if (sem_acento(busca) in sem_acento(l["nome"]) if busca else l["departamento"] == departamento)]
 
     return render_template(
-        "acompanhamento.html", semana=semana, rotulo=semana and rotulo_semana(semana),
-        tipo=semana and TIPOS_SEMANA[tipo_semana(semana)], semanas=[(s, rotulo_semana(s)) for s in semanas],
+        "acompanhamento.html", semana=semana, rotulo=semana and rotulo_periodo(semana, periodos[semana]),
+        tipos=semana and tipos_do_periodo(semana, periodos[semana]), semanas=[(s, rotulo_periodo(s, f)) for s, f in semanas],
         resumo=acomp.resumo(linhas), deptos=acomp.por_departamento(linhas), familias=familias,
         departamentos=departamentos, departamento=departamento, busca=busca, margem=ACERTO_MARGEM * 100, unidades=ACERTO_UNIDADES)
 

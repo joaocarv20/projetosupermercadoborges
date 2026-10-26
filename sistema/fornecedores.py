@@ -84,10 +84,10 @@ def gravar_escolhas(base, semana, pares):
         [(semana.isoformat(), c, f) for c, f in pares])
 
 
-def link_pedido(telefone, semana_rotulo, itens):
+def link_pedido(telefone, periodo, itens):
     """Link do WhatsApp (wa.me) com o pedido já escrito. itens = [(produto, quantidade em texto)].
     Sem telefone, o WhatsApp abre e pede para escolher o contato."""
-    texto = "\n".join(["Pedido – Supermercado Borges", f"Semana de {semana_rotulo}", "",
+    texto = "\n".join(["Pedido – Supermercado Borges", f"Para vender de {periodo}", "",
                        *(f"{' '.join(produto.split())} – {qtd}" for produto, qtd in itens), "", f"Total: {len(itens)} itens"])
     numero = re.sub(r"\D", "", telefone or "").lstrip("0")
     if len(numero) in (10, 11):  # DDD + número, sem o 55 do Brasil

@@ -1,5 +1,6 @@
 """Teste das telas com uma base inventada (login, sugestão, alerta e análise).  Rode:  python -m testes.test_app"""
 import io
+import math
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
@@ -32,20 +33,32 @@ assert "incorretos" in cliente.post("/login", data={"usuario": "paulo", "senha":
 assert cliente.post("/login", data={"usuario": "Paulo", "senha": "segredo1"}).status_code == 302
 
 semana = motor.proxima_segunda(date.today()).isoformat()
-pagina = cliente.get(f"/sugestao?semana={semana}").text
+periodo = f"inicio={semana}&fim={date.fromisoformat(semana) + timedelta(days=6)}"
+pagina = cliente.get(f"/sugestao?{periodo}").text
 assert "ARROZ" in pagina and 'value="70" aria-label="Quantidade final de ARROZ"' in pagina                # 10 por dia x 7
 
-cliente.post(f"/sugestao?semana={semana}", data={"qtd_1": "75", "qtd_2": "abc", "qtd_99": "5"})
+cliente.post(f"/sugestao?{periodo}", data={"qtd_1": "75", "qtd_2": "abc", "qtd_99": "5"})
 assert base.execute("SELECT familia_id, qtd_sugerida, qtd_final FROM sugestoes ORDER BY 1").fetchall() == [
     (1, 70, 75), (2, 70, None)]                                                   # texto inválido e família estranha são ignorados
-assert 'value="75" aria-label="Quantidade final de ARROZ"' in cliente.get(f"/sugestao?semana={semana}").text
-assert "FEIJAO" not in cliente.get(f"/sugestao?semana={semana}&busca=arroz").text
+assert 'value="75" aria-label="Quantidade final de ARROZ"' in cliente.get(f"/sugestao?{periodo}").text
+assert "FEIJAO" not in cliente.get(f"/sugestao?{periodo}&busca=arroz").text
 # Pouca saída: com 1 un salva, o feijão sai da lista do departamento, mas aparece marcando "todas" e na busca
-cliente.post(f"/sugestao?semana={semana}", data={"qtd_2": "1"})
-pagina = cliente.get(f"/sugestao?semana={semana}").text
+cliente.post(f"/sugestao?{periodo}", data={"qtd_2": "1"})
+pagina = cliente.get(f"/sugestao?{periodo}").text
 assert "FEIJAO" not in pagina and "1 famílias de pouca saída" in pagina
-assert "FEIJAO" in cliente.get(f"/sugestao?semana={semana}&todas=1").text
-assert "FEIJAO" in cliente.get(f"/sugestao?semana={semana}&busca=feijao").text
+assert "FEIJAO" in cliente.get(f"/sugestao?{periodo}&todas=1").text
+assert "FEIJAO" in cliente.get(f"/sugestao?{periodo}&busca=feijao").text
+# Período de 3 dias: a semana repartida pelo peso de cada dia; datas trocadas são desviradas; mais de 31 dias é cortado
+tres = f"inicio={semana}&fim={date.fromisoformat(semana) + timedelta(days=2)}"
+pagina = cliente.get(f"/sugestao?{tres}").text
+tres_dias = math.ceil(round(70 * sum(motor.peso_dos_dias(base)[:3]), 6))      # 70 na semana x peso de seg, ter e qua
+assert f'value="{tres_dias}" aria-label="Quantidade final de ARROZ"' in pagina and "(3 dias)" in pagina
+assert "(3 dias)" in cliente.get(f"/sugestao?inicio={date.fromisoformat(semana) + timedelta(days=2)}&fim={semana}").text
+assert "O período vai até 31 dias" in cliente.get(f"/sugestao?inicio={semana}&fim={date.fromisoformat(semana) + timedelta(days=60)}").text
+cliente.post(f"/sugestao?{tres}", data={"qtd_1": "33"})
+assert base.execute("SELECT qtd_final, fim FROM sugestoes WHERE familia_id = 1").fetchone() == (33, (date.fromisoformat(semana) + timedelta(days=2)).isoformat())
+assert 'value="70" aria-label="Quantidade final de ARROZ"' in cliente.get(f"/sugestao?{periodo}").text   # a semana não usa os 33
+cliente.post(f"/sugestao?{periodo}", data={"qtd_1": "75", "qtd_2": "1"})                                  # volta a semana salva
 
 assert "FEIJAO 1KG" in cliente.get("/alertas").text                               # parou há 10 dias
 assert cliente.post("/alertas", data={"codprod": "2", "status": "qualquer"}).status_code == 400
@@ -58,7 +71,8 @@ assert cliente.get("/calendario").status_code == 200
 
 assert "Ainda não há semana" in cliente.get("/acompanhamento").text                # a semana salva acima não terminou
 fechada = (motor.proxima_segunda(date.today()) - timedelta(weeks=3)).isoformat()
-base.execute("INSERT INTO sugestoes VALUES (?, 1, 70, 80)", (fechada,))
+base.execute("INSERT INTO sugestoes (semana, fim, familia_id, qtd_sugerida, qtd_final) VALUES (?, date(?, '+6 days'), 1, 70, 80)",
+             (fechada, fechada))
 base.commit()
 pagina = cliente.get("/acompanhamento?semana=lixo").text                          # semana inválida: a mais recente
 assert "ARROZ" in pagina and "0 × 1" in pagina                  # vendeu 70: sistema mais perto
@@ -74,7 +88,7 @@ assert "colunas" in cliente.post("/familias", data=envio, content_type="multipar
 
 # Sugestão por sabor: o feijão entra na família do arroz e a compra é repartida pela venda de cada um
 cliente.post("/familias", data={"codprod": "2", "familia": "ARROZ"})
-pagina = cliente.get(f"/sugestao?semana={semana}").text
+pagina = cliente.get(f"/sugestao?{periodo}").text
 assert "2 sabores" in pagina and "<strong>38 un</strong>" in pagina and "<strong>37 un</strong>" in pagina  # 75 salvos
 # Fornecedores: cadastrar, nome repetido, editar
 cliente.post("/fornecedores", data={"nome": " camil ", "telefone": "11 9999"})
@@ -114,25 +128,25 @@ cliente.post("/fornecedores", data={"nome": "CAMIL"})                           
 cliente.post("/fornecedores/produtos", data={"codprods": "1,2", "fornecedor": "CAMIL"})
 cliente.post("/fornecedores/produtos", data={"codprods": "1", "fornecedor": "ATACADO SUL"})
 # produto 1: ATACADO SUL e CAMIL (vem marcado o 1º em ordem alfabética); produto 2: ATACADO SUL e CAMIL também
-pagina = cliente.get(f"/sugestao?semana={semana}").text
+pagina = cliente.get(f"/sugestao?{periodo}").text
 assert 'name="forn_1"' in pagina and '<option value="2" selected>ATACADO SUL</option>' in pagina
-cliente.post(f"/sugestao?semana={semana}", data={"qtd_1": "75", "forn_1": "3", "forn_2": "99"})       # 99 não é fornecedor do 2
+cliente.post(f"/sugestao?{periodo}", data={"qtd_1": "75", "forn_1": "3", "forn_2": "99"})       # 99 não é fornecedor do 2
 assert base.execute("SELECT codprod, fornecedor_id FROM escolha_fornecedor").fetchall() == [(1, 3)]
-assert '<option value="3" selected>CAMIL</option>' in cliente.get(f"/sugestao?semana={semana}").text
+assert '<option value="3" selected>CAMIL</option>' in cliente.get(f"/sugestao?{periodo}").text
 seguinte = (date.fromisoformat(semana) + timedelta(weeks=1)).isoformat()
-assert '<option value="3" selected>CAMIL</option>' in cliente.get(f"/sugestao?semana={seguinte}").text  # a última escolha vale
-assert "ARROZ" in cliente.get(f"/sugestao?semana={semana}&fornecedor=3").text
+assert '<option value="3" selected>CAMIL</option>' in cliente.get(f"/sugestao?inicio={seguinte}").text  # a última escolha vale
+assert "ARROZ" in cliente.get(f"/sugestao?{periodo}&fornecedor=3").text
 cliente.post("/fornecedores", data={"nome": "SEM PRODUTO"})
-assert "Nenhum produto" in cliente.get(f"/sugestao?semana={semana}&fornecedor=4").text
+assert "Nenhum produto" in cliente.get(f"/sugestao?{periodo}&fornecedor=4").text
 
 # Pedido pelo WhatsApp: salva e abre o wa.me com só os sabores em que o fornecedor é o escolhido
 cliente.post("/fornecedores", data={"id": "3", "nome": "CAMIL", "telefone": "(11) 98765-4321"})
-assert "mandar pedido para CAMIL" in cliente.get(f"/sugestao?semana={semana}&fornecedor=3").text
-resposta = cliente.post(f"/sugestao?semana={semana}&fornecedor=3", data={"qtd_1": "75", "forn_1": "3", "enviar": "3"})
+assert "mandar pedido para CAMIL" in cliente.get(f"/sugestao?{periodo}&fornecedor=3").text
+resposta = cliente.post(f"/sugestao?{periodo}&fornecedor=3", data={"qtd_1": "75", "forn_1": "3", "enviar": "3"})
 link = resposta.location
 assert link.startswith("https://wa.me/5511987654321?text=Pedido") and "ARROZ%205KG" in link and "FEIJAO" not in link, link
 assert "Total%3A%201%20itens" in link
-assert "/sugestao" in cliente.post(f"/sugestao?semana={semana}&fornecedor=4", data={"enviar": "4"}).location  # nada a pedir
+assert "/sugestao" in cliente.post(f"/sugestao?{periodo}&fornecedor=4", data={"enviar": "4"}).location  # nada a pedir
 assert forn_link("0xx11 3333-4444") == "https://wa.me/551133334444?text="                       # fixo com 0 na frente
 assert forn_link("") == "https://wa.me/?text="                                                  # sem telefone
 

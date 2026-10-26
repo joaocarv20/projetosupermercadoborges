@@ -1,14 +1,14 @@
 """
 Acompanhamento da sugestão: para uma semana que já terminou, compara o que o sistema sugeriu,
-o que o comprador salvou e o que realmente vendeu.
+o que o comprador salvou e o que realmente vendeu. O período é o que foi salvo na sugestão (semana = 1º dia, fim = último).
 
 O motor não usa estoque, então a sugestão é uma previsão de venda: o acerto do sistema é medido
 contra a venda real. A quantidade do comprador mostra onde ele discorda (pode ser estoque, promoção...).
 
-Como rodar:  python -m sistema.acompanhamento 2026-10-12   (a segunda-feira da semana)
+Como rodar:  python -m sistema.acompanhamento 2026-10-12   (o 1º dia do período salvo)
 """
 import sys
-from datetime import date, timedelta
+from datetime import date
 from statistics import median
 
 from sistema.base_local import abrir
@@ -16,12 +16,12 @@ from config import ACERTO_MARGEM, ACERTO_UNIDADES
 
 
 def semanas_fechadas(base):
-    """Segundas-feiras com sugestão salva cuja semana já terminou e tem venda na base, da mais nova para a mais antiga."""
+    """[(início, fim)] dos períodos com sugestão salva que já terminaram e têm venda na base, do mais novo para o mais antigo."""
     ultimo = base.execute("SELECT MAX(data) FROM vendas_diarias").fetchone()[0]
     if not ultimo:
         return []
-    return [date.fromisoformat(s) for (s,) in base.execute(
-        "SELECT DISTINCT semana FROM sugestoes WHERE date(semana, '+6 days') <= ? ORDER BY semana DESC", (ultimo,))]
+    return [(date.fromisoformat(s), date.fromisoformat(f)) for s, f in base.execute(
+        "SELECT semana, MAX(fim) FROM sugestoes GROUP BY semana HAVING MAX(fim) <= ? ORDER BY semana DESC", (ultimo,))]
 
 
 def erro_pct(previsto, vendeu):
@@ -34,8 +34,8 @@ def acertou(previsto, vendeu):
 
 
 def comparar(base, segunda):
-    """Uma linha por família com sugestão salva na semana, do maior erro do sistema para o menor."""
-    fim = segunda + timedelta(days=6)
+    """Uma linha por família com sugestão salva no período que começa em `segunda`, do maior erro do sistema para o menor."""
+    fim = date.fromisoformat(base.execute("SELECT MAX(fim) FROM sugestoes WHERE semana = ?", (segunda.isoformat(),)).fetchone()[0])
     linhas = base.execute(
         """SELECT s.familia_id, f.nome, MIN(d.nome), MAX(p.unidade), s.qtd_sugerida, s.qtd_final,
                   (SELECT COALESCE(SUM(v.qtd), 0) FROM vendas_diarias v JOIN produtos p2 ON p2.codprod = v.codprod
@@ -90,12 +90,12 @@ def por_departamento(linhas):
 
 if __name__ == "__main__":
     base = abrir()
-    semana = date.fromisoformat(sys.argv[1]) if len(sys.argv) > 1 else next(iter(semanas_fechadas(base)), None)
+    semana = date.fromisoformat(sys.argv[1]) if len(sys.argv) > 1 else next(iter(semanas_fechadas(base)), (None,))[0]
     if not semana:
         sys.exit("Nenhuma semana com sugestão salva já terminou.")
     linhas = comparar(base, semana)
     r = resumo(linhas)
-    print(f"Semana de {semana:%d/%m/%Y}: o sistema acertou {r['acertos']} de {r['familias']} famílias "
+    print(f"Período que começa em {semana:%d/%m/%Y}: o sistema acertou {r['acertos']} de {r['familias']} famílias "
           f"(margem de {ACERTO_MARGEM:.0%} ou {ACERTO_UNIDADES} un). O comprador alterou {r['alteradas']}.")
     for d in por_departamento(linhas):
         erro = "—" if d["erro_tipico"] is None else f"{d['erro_tipico']:+.0f}%"

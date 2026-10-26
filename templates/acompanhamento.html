@@ -10,8 +10,8 @@
   <h1>Acompanhamento da sugestão</h1>
   {% if semana %}
   <p class="semana-alvo">
-    Semana: <strong>{{ rotulo }}</strong>
-    <span class="etiqueta {{ tipo.cor }}">{{ tipo.nome }}</span>
+    Período: <strong>{{ rotulo }}</strong>
+    {% for t in tipos %}<span class="etiqueta {{ t.cor }}">{{ t.nome }}</span>{% endfor %}
   </p>
   {% endif %}
   <p class="explicacao">Compara a sugestão com o que realmente vendeu na semana. Acertou = a venda ficou até
@@ -24,12 +24,12 @@
 {% else %}
 
 <form class="filtros nao-imprimir" method="get">
-  <label>Semana
+  <label>Período
     <select name="semana">
       {% for s, r in semanas %}<option value="{{ s.isoformat() }}" {{ 'selected' if s == semana }}>{{ r }}</option>{% endfor %}
     </select>
   </label>
-  <button type="submit" class="botao">Ver semana</button>
+  <button type="submit" class="botao">Ver período</button>
 </form>
 
 <section class="cards">
