@@ -46,8 +46,13 @@
       {% for fid, nome, _ in fornecedores %}<option value="{{ fid }}" {{ 'selected' if fid == fornecedor }}>{{ nome }}</option>{% endfor %}
     </select>
   </label>
+  <label class="marcar"><input type="checkbox" name="todas" value="1" {{ 'checked' if todas }}> Mostrar também os de pouca saída</label>
   <button type="submit" class="botao">Aplicar</button>
 </form>
+{% if escondidas %}
+<p class="explicacao nao-imprimir">{{ escondidas }} famílias de pouca saída (sugestão abaixo de {{ minima }} un) escondidas.
+  Marque "Mostrar também os de pouca saída" para ver.</p>
+{% endif %}
 
 <!-- Sem action: envia para a mesma URL, com os filtros, e volta para ela depois de salvar -->
 <form method="post">

@@ -15,6 +15,10 @@ SEMANAS_EQUIVALENTES = 6
 ACERTO_MARGEM = 0.2
 ACERTO_UNIDADES = 1
 
+# Sugestão: família em unidades que sugere menos que isso fica escondida na tela (são ~30% das famílias).
+# Continua calculada, aparece na busca, no filtro por fornecedor e com "Mostrar também os de pouca saída"
+SUGESTAO_MINIMA = 2
+
 # Lista de alerta: produto que vendeu em pelo menos 70% das semanas e está há 7 dias ou mais sem vender
 ALERTA_FREQUENCIA = 0.7
 ALERTA_DIAS_SEM_VENDA = 7

@@ -88,6 +88,11 @@ com usuário e senha. A tela principal é a Sugestão de compra, aberta toda seg
 Na impressão da sugestão saem só o cabeçalho, a tabela com os sabores de cada família e um campo para assinatura.
 As telas grandes mostram **um departamento por vez**; a busca procura em todos.
 
+Na Sugestão, a família em unidades que sugere **menos de 2 un** (`SUGESTAO_MINIMA` no `config.py`) fica escondida
+da lista do departamento: são cerca de 30% das famílias (511 de 1.654). Ela continua calculada e salva, aparece na
+busca, no filtro por fornecedor (e vai no pedido do WhatsApp) e com a caixa "Mostrar também os de pouca saída".
+Família em kg não é escondida.
+
 ## Regras de negócio
 
 Os números ficam em `config.py` ou `sistema/calendario.py` e podem ser ajustados.
@@ -262,6 +267,7 @@ Mais recente primeiro. Cada mudança no sistema ganha uma linha aqui.
 
 | Data | Mudança | Detalhe |
 | --- | --- | --- |
+| 26/10 | Sugestão esconde pouca saída | Famílias com sugestão abaixo de 2 un saem da lista do departamento; caixa "Mostrar também os de pouca saída" |
 | 20/10 | Documentação em Markdown | Este arquivo substitui o `.docx` de 07/10 e passa a ser atualizado a cada mudança |
 | 19/10 | Cadastro de fornecedores com busca | Com os ~600 fornecedores do Cefas a tela ficou lenta: sem busca, mostra os 50 que fornecem mais produtos |
 | 19/10 | Rotina não para sem permissão | Se faltar `GRANT SELECT` nos fornecedores, o log avisa e as vendas seguem |

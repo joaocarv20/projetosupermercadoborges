@@ -26,7 +26,7 @@ from sistema import base_local
 from sistema import motor
 from sistema.base_local import abrir
 from sistema.calendario import feriado, tipo_semana, tipos_do_dia
-from config import ACERTO_MARGEM, ACERTO_UNIDADES
+from config import ACERTO_MARGEM, ACERTO_UNIDADES, SUGESTAO_MINIMA
 
 app = Flask(__name__)
 # Sem SECRET_KEY no ambiente, cada reinício do servidor pede login de novo
@@ -186,7 +186,8 @@ def sugestao():
     except ValueError:
         fornecedor = None
 
-    familias = []
+    todas = bool(request.args.get("todas"))
+    familias, escondidas = [], 0
     for l in linhas:
         # A busca e o fornecedor procuram em todos os departamentos (o pedido de um fornecedor passa por vários)
         if not (busca or fornecedor) and (l["departamento"] or "SEM DEPARTAMENTO") != departamento:
@@ -197,6 +198,10 @@ def sugestao():
             continue
         kg = l["unidade"] == "KG"
         final = salvas.get(l["familia_id"], l["sugestao"])
+        # Pouca saída sai da lista do departamento; na busca e no pedido do fornecedor aparece tudo
+        if not (busca or fornecedor or todas or kg) and final < SUGESTAO_MINIMA:
+            escondidas += 1
+            continue
         # Quanto comprar de cada sabor: a quantidade final repartida pela venda de cada um
         comprar = motor.dividir(final, [p["qtd"] for p in l["produtos"]], l["unidade"])
         familias.append({
@@ -216,7 +221,8 @@ def sugestao():
         "sugestao.html", semana=semana, rotulo=rotulo_semana(semana), tipo=TIPOS_SEMANA[tipo_semana(semana)],
         obs=obs, semanas=[(s, rotulo_semana(s), TIPOS_SEMANA[tipo_semana(s)]["nome"]) for s in semanas],
         familias=familias, departamentos=departamentos, departamento=departamento, busca=busca,
-        fornecedores=lista_fornecedores, fornecedor=fornecedor,
+        fornecedores=lista_fornecedores, fornecedor=fornecedor, todas=todas, escondidas=escondidas,
+        minima=SUGESTAO_MINIMA,
         escolhido=next((f for f in lista_fornecedores if f[0] == fornecedor), None))
 
 

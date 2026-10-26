@@ -40,6 +40,12 @@ assert base.execute("SELECT familia_id, qtd_sugerida, qtd_final FROM sugestoes O
     (1, 70, 75), (2, 70, None)]                                                   # texto inválido e família estranha são ignorados
 assert 'value="75" aria-label="Quantidade final de ARROZ"' in cliente.get(f"/sugestao?semana={semana}").text
 assert "FEIJAO" not in cliente.get(f"/sugestao?semana={semana}&busca=arroz").text
+# Pouca saída: com 1 un salva, o feijão sai da lista do departamento, mas aparece marcando "todas" e na busca
+cliente.post(f"/sugestao?semana={semana}", data={"qtd_2": "1"})
+pagina = cliente.get(f"/sugestao?semana={semana}").text
+assert "FEIJAO" not in pagina and "1 famílias de pouca saída" in pagina
+assert "FEIJAO" in cliente.get(f"/sugestao?semana={semana}&todas=1").text
+assert "FEIJAO" in cliente.get(f"/sugestao?semana={semana}&busca=feijao").text
 
 assert "FEIJAO 1KG" in cliente.get("/alertas").text                               # parou há 10 dias
 assert cliente.post("/alertas", data={"codprod": "2", "status": "qualquer"}).status_code == 400
