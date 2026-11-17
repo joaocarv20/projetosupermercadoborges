@@ -4,14 +4,16 @@
 
 <header class="cabecalho">
   <h1>Fornecedores</h1>
-  <p class="explicacao">Quem fornece cada produto. Um produto pode ter mais de um fornecedor.
-    O fornecedor digitado na família vale para todos os produtos dela; para tirar de um só, clique no × ao lado do nome.
-    Só aparecem produtos que venderam no último ano.</p>
+  <p class="explicacao">Quem fornece cada produto. Um produto pode ter mais de um fornecedor.</p>
+  <details class="ajuda"><summary>Como usar</summary>
+    <p>O fornecedor digitado na família vale para todos os produtos dela; para tirar de um só, clique no × ao lado do nome.</p>
+    <p>Só aparecem produtos que venderam no último ano.</p>
+  </details>
 </header>
 
 <nav class="abas">
-  <a class="botao" href="{{ url_for('fornecedores') }}">Cadastro</a>
-  <a class="botao principal" href="{{ url_for('fornecedores_produtos') }}">Produtos</a>
+  <a href="{{ url_for('fornecedores') }}">Cadastro</a>
+  <a class="ativa" href="{{ url_for('fornecedores_produtos') }}">Produtos</a>
 </nav>
 
 {% if erro %}<div class="faixa-alerta">{{ erro }}</div>{% endif %}
@@ -20,7 +22,7 @@
 <div class="filtros">
   <form method="get" class="filtros-linha">
     <label>Departamento
-      <select name="departamento">
+      <select name="departamento" onchange="this.form.submit()">
         {% for d in departamentos %}<option {{ 'selected' if d == departamento }}>{{ d }}</option>{% endfor %}
       </select>
     </label>

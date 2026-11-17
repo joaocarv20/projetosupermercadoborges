@@ -77,13 +77,17 @@ com usuário e senha. A tela principal é a Sugestão de compra, aberta toda seg
 | Tela | Para quê | O que o comprador faz nela |
 | --- | --- | --- |
 | Sugestão de compra | Quanto comprar de cada família para vender num período (de um dia a outro, até 31 dias), e de quem | Escolhe as datas De e Até (sem escolha, a semana seguinte); filtra por departamento, busca ou fornecedor; abre a família para ver quanto comprar de cada sabor; corrige a quantidade final; escolhe o fornecedor de cada produto; salva, imprime ou **manda o pedido do fornecedor pelo WhatsApp** |
-| Lista de alerta | Produtos que costumam vender e pararam (provável falta na prateleira) | Marca cada um como "Verificando", "Já comprei" ou "Descontinuado" |
+| Lista de alerta | Produtos que costumam vender e pararam (provável falta na prateleira) | Filtra por departamento; marca cada um como "Verificando", "Já comprei" ou "Descontinuado" (a tela volta para o mesmo ponto da lista) |
 | Famílias de produto | Conferir e corrigir como os sabores foram agrupados | Move um produto para outra família ou para uma nova; baixa a planilha, corrige no Excel e envia de volta |
 | Fornecedores > Cadastro | Fornecedores, contato e telefone do WhatsApp | Cadastra, edita, exclui; busca por nome, contato ou telefone (sem busca, mostra os 50 que fornecem mais produtos) |
 | Fornecedores > Produtos | Quem fornece cada produto | Acrescenta um fornecedor à família inteira; tira de um produto com o ×; filtra "só sem fornecedor"; ajusta pela planilha |
 | Acompanhamento | Medir se a sugestão acerta | Escolhe um período salvo já fechado; vê o acerto geral, por departamento e família por família |
-| Análise de vendas | Vendas por departamento num período | Escolhe as datas; compara com o período anterior e com o ano passado; gráfico por semana |
-| Calendário de dias quentes | Ver os dias de salário, recarga, semana fraca e feriado | Navega pelos meses (por enquanto só 2026) |
+| Calendário de dias quentes | Ver os dias de salário, recarga, semana fraca e feriado | Abre no mês atual; navega pelos meses (por enquanto só 2026) |
+
+Depois de salvar (sugestão, alerta, família, fornecedor), um aviso aparece no canto da tela e some sozinho.
+Na Sugestão, os botões Salvar, Imprimir e WhatsApp ficam presos no pé da tela enquanto a lista rola.
+O visual ("etiqueta de gôndola": papel, verde de placa, amarelo de etiqueta de preço) fica todo em `static/style.css`;
+a fonte das placas e números é a Bahnschrift, que vem no Windows 10/11 (sem internet, cai para Arial Narrow).
 
 Na impressão da sugestão saem só o cabeçalho, a tabela com os sabores de cada família e um campo para assinatura.
 As telas grandes mostram **um departamento por vez**; a busca procura em todos.
@@ -155,7 +159,8 @@ mudança espera alguns segundos.
 ### Lista de alerta
 
 Entra o produto que vendeu em pelo menos 70% das semanas do último ano (no mínimo 4 semanas) e está há 7 dias ou mais
-sem vender. "Já comprei" tira da lista por 7 dias; "Descontinuado" tira até o produto voltar a vender.
+sem vender, contando até o último dia com venda na base (um atraso do extrator não enche a lista). Os dias mostrados
+("há 30 dias") contam até hoje. "Já comprei" tira da lista por 7 dias; "Descontinuado" tira até o produto voltar a vender.
 
 ### Acompanhamento
 
@@ -172,7 +177,7 @@ feita pelo AnyDesk. Passo a passo completo, problemas comuns e como atualizar: [
 | Quando | O que acontece |
 | --- | --- |
 | Ao ligar o computador | Sobe o servidor das telas (tarefa "Borges - servidor" → `iniciar_servidor.bat`) |
-| Todo dia às 3h | Vendas de ontem, produtos, fornecedores e backup (tarefa "Borges - rotina noturna" → `rotina_noturna.bat`) |
+| Todo dia às 3h | Vendas de ontem, produtos, fornecedores e backup (tarefa "Borges - rotina noturna" → `rotina_noturna.bat`). Se as vendas ficarem mais de 2 dias atrasadas, todas as telas mostram um aviso no topo |
 | Segunda de manhã | O Paulo abre a sugestão; o cálculo é feito na hora |
 | Uma vez por semana (manual) | Copiar o backup mais novo para fora da máquina |
 | Depois de cada mudança | No mercado, dois cliques no `atualizar.bat` |
@@ -209,6 +214,8 @@ Todos rodam da pasta principal do projeto (no mercado: `.venv\Scripts\python` no
 - **Sem estoque no cálculo:** a sugestão é uma previsão de venda em unidades ou kg; o comprador desconta o estoque e
   converte em caixas.
 - **Acerto com tolerância** de 20% ou 1 unidade, porque produto de pouca saída oscila entre 0 e 3 por semana.
+- **16/11: sem análise de vendas no sistema:** o ERP do mercado já mostra as vendas por período e departamento; o
+  sistema fica só com o que o ERP não tem (sugestão, alerta, famílias, fornecedores e acerto da sugestão).
 - **Sábado não conta** como dia útil no 5º dia útil do salário (configurável em `sistema/calendario.py`).
 - **14/10, com o Paulo:** famílias por tipo + marca + tamanho mantidas; margem de acerto mantida; quer ver a quantidade
   por sabor; pedido aos fornecedores por WhatsApp; um produto pode ter 2 fornecedores.
@@ -273,7 +280,11 @@ Mais recente primeiro. Cada mudança no sistema ganha uma linha aqui.
 
 | Data | Mudança | Detalhe |
 | --- | --- | --- |
-| 26/10 | Sugestão por período (branch `sugestao-periodo`, em teste) | Pedido do Paulo: escolher de um dia a outro (até 31 dias) em vez da semana fixa; cada semana entra pela parte dos dias, pelo peso de cada dia da semana; coluna `fim` em `sugestoes` (criada sozinha nas bases antigas); WhatsApp diz "Para vender de ..." |
+| 17/11 | Dias sem venda contados até hoje | A Lista de alerta contava até o último dia com venda na base, e com a base parada mostrava menos dias que o real; agora conta até hoje (quem entra na lista continua pelo último dia com venda). Aviso no topo de todas as telas quando as vendas têm mais de 2 dias de atraso (rotina da noite parada) |
+| 16/11 | Sai a tela Análise de vendas | Estava desatualizada e o ERP do Paulo já tem a análise de vendas completa; saem a rota `/analise`, o `analise.html`, o item do menu e o CSS do gráfico |
+| 16/11 | Visual novo: "etiqueta de gôndola" | Papel creme, menu verde com a tela aberta como aba, sugestão em etiqueta de preço amarela, fonte de placa (Bahnschrift, já vem no Windows), tabelas de caderno; explicações longas recolhidas em "Como funciona"; barra de Salvar/Imprimir/WhatsApp presa no pé da Sugestão; abas de Fornecedores como fichário; departamento e período aplicam ao trocar; tela estreita com menu em cima. Ícone de carrinho 🛒 na aba do navegador. Tudo em `static/style.css`, sem biblioteca nova |
+| 16/11 | Acabamento das telas | Ícones no menu e usuário ao lado de "Sair"; aviso de salvo em todas as telas; calendário sem "Fase 2" e abrindo no mês atual; Lista de alerta com filtro por departamento, botões lado a lado e volta ao mesmo ponto depois de marcar |
+| 26/10 | Sugestão por período (na `main` em 17/11) | Pedido do Paulo: escolher de um dia a outro (até 31 dias) em vez da semana fixa; cada semana entra pela parte dos dias, pelo peso de cada dia da semana; coluna `fim` em `sugestoes` (criada sozinha nas bases antigas); WhatsApp diz "Para vender de ..." |
 | 26/10 | Sugestão esconde pouca saída | Famílias com sugestão abaixo de 2 un saem da lista do departamento; caixa "Mostrar também os de pouca saída" |
 | 20/10 | Documentação em Markdown | Este arquivo substitui o `.docx` de 07/10 e passa a ser atualizado a cada mudança |
 | 19/10 | Cadastro de fornecedores com busca | Com os ~600 fornecedores do Cefas a tela ficou lenta: sem busca, mostra os 50 que fornecem mais produtos |

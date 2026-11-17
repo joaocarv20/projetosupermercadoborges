@@ -8,9 +8,19 @@
 </header>
 
 <div class="faixa-alerta">
-  <strong>{{ alertas|length }} produtos</strong> costumam vender quase toda semana, mas não venderam nada nos últimos dias.
+  <strong>{{ total }} produtos</strong> costumam vender quase toda semana, mas não venderam nada nos últimos dias.
   Quando o produto acaba na prateleira ele para de vender e some do relatório de compra — confira cada um.
 </div>
+
+<form class="filtros nao-imprimir" method="get">
+  <label>Departamento
+    <select name="departamento" onchange="this.form.submit()">
+      <option value="">Todos ({{ total }})</option>
+      {% for d, n in departamentos %}<option value="{{ d }}" {{ 'selected' if d == departamento }}>{{ d }} ({{ n }})</option>{% endfor %}
+    </select>
+  </label>
+  <noscript><button type="submit" class="botao">Aplicar</button></noscript>
+</form>
 
 <table class="tabela tabela-alerta">
   <thead>
@@ -18,25 +28,27 @@
       <th>Produto</th>
       <th>Departamento</th>
       <th>Última venda</th>
-      <th>Frequência de venda</th>
+      <th>Semanas com venda</th>
       <th>Situação</th>
       <th class="nao-imprimir">Ações</th>
     </tr>
   </thead>
   <tbody>
     {% for a in alertas %}
-    <tr>
+    <tr id="p{{ a.codprod }}">
       <td><strong>{{ a.produto }}</strong></td>
       <td>{{ a.departamento }}</td>
-      <td>há <strong>{{ a.dias_sem_venda }} dias</strong> <small>({{ a.ultima_venda|data_br }})</small></td>
-      <td>vendeu em {{ a.semanas_com_venda }} de {{ a.semanas_total }} semanas</td>
-      <td>{{ status[a.status] if a.status else '—' }}</td>
+      <td class="sem-quebra">há <strong>{{ a.dias_sem_venda }} dias</strong><small>{{ a.ultima_venda|data_br }}</small></td>
+      <td class="sem-quebra">{{ a.semanas_com_venda }} de {{ a.semanas_total }}</td>
+      <td>{% if a.status %}<span class="situacao {{ a.status }}">{{ status[a.status] }}</span>{% else %}—{% endif %}</td>
       <td class="acoes nao-imprimir">
         <form method="post">
           <input type="hidden" name="codprod" value="{{ a.codprod }}">
+          <input type="hidden" name="produto" value="{{ a.produto }}">
+          <input type="hidden" name="proximo" value="{{ loop.nextitem.codprod if loop.nextitem }}">
           <button name="status" value="verificar" class="botao pequeno">Verificar</button>
           <button name="status" value="comprado" class="botao pequeno">Já comprei</button>
-          <button name="status" value="descontinuado" class="botao pequeno discreto">Produto descontinuado</button>
+          <button name="status" value="descontinuado" class="botao pequeno discreto">Descontinuado</button>
         </form>
       </td>
     </tr>

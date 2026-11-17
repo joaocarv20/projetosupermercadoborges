@@ -18,10 +18,12 @@
   </p>
   {% if obs %}<p class="obs">Feriado: {{ obs }}</p>{% endif %}
   {% if aviso %}<p class="obs nao-imprimir">{{ aviso }}</p>{% endif %}
-  <p class="explicacao">Mediana das últimas 6 semanas do mesmo tipo. Período que não é de segunda a domingo: cada semana
-    entra com a parte dos dias escolhidos, pelo quanto cada dia da semana costuma vender.
-    A sugestão está em unidades ou quilos: converta para caixas na hora de pedir.
-    Clique numa família para ver quanto comprar de cada sabor e de qual fornecedor (sai na impressão).</p>
+  <p class="explicacao">Clique numa família para ver quanto comprar de cada sabor e de qual fornecedor.
+    A sugestão está em unidades ou quilos: converta para caixas na hora de pedir.</p>
+  <details class="ajuda nao-imprimir"><summary>Como a sugestão é calculada</summary>
+    <p>É a mediana do que a família vendeu nas últimas 6 semanas do mesmo tipo (salário, recarga, meio do mês, fraca ou feriado).</p>
+    <p>Período que não é de segunda a domingo: cada semana entra com a parte dos dias escolhidos, pelo quanto cada dia da semana costuma vender.</p>
+  </details>
 </header>
 
 <!-- Filtros: enviados pela URL (GET), sem JavaScript -->
@@ -29,7 +31,7 @@
   <label>De <input type="date" name="inicio" value="{{ inicio.isoformat() }}" required></label>
   <label>Até <input type="date" name="fim" value="{{ fim.isoformat() }}" required></label>
   <label>Departamento
-    <select name="departamento">
+    <select name="departamento" onchange="this.form.submit()">
       {% for d in departamentos %}
         <option {{ 'selected' if d == departamento }}>{{ d }}</option>
       {% endfor %}
@@ -54,7 +56,7 @@
 
 <!-- Sem action: envia para a mesma URL, com os filtros, e volta para ela depois de salvar -->
 <form method="post">
-<p class="nao-imprimir">
+{% set acoes %}
   <button type="submit" class="botao principal">Salvar quantidades e fornecedores</button>
   <button type="button" class="botao" onclick="window.print()">Imprimir lista de compra</button>
   {% if escolhido and familias %}
@@ -63,7 +65,7 @@
       Salvar e mandar pedido para {{ escolhido[1] }} pelo WhatsApp</button>
     {% if not escolhido[2] %}<small class="qtd-sabores">Sem telefone no cadastro: o WhatsApp vai pedir o contato.</small>{% endif %}
   {% endif %}
-</p>
+{% endset %}
 <table class="tabela tabela-familias">
   <thead>
     <tr>
@@ -105,7 +107,7 @@
       </td>
       <td>{{ f.departamento }}</td>
       <td class="num">
-        <strong>{{ f.sugestao|br(f.casas) }} {{ f.un }}</strong>
+        <strong class="tag">{{ f.sugestao|br(f.casas) }} {{ f.un }}</strong>
         {% if f.semanas_usadas < 6 %}<small>só {{ f.semanas_usadas }} semana{{ 's' if f.semanas_usadas > 1 }} de histórico</small>{% endif %}
       </td>
       <td class="num">{{ f.mediana|br(f.casas) }} {{ f.un }}</td>
@@ -120,6 +122,8 @@
     {% endfor %}
   </tbody>
 </table>
+<!-- Presa no pé da tela enquanto a lista rola -->
+<div class="barra-acoes nao-imprimir">{{ acoes }}</div>
 </form>
 
 <script>

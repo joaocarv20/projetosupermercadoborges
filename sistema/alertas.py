@@ -15,9 +15,11 @@ from config import ALERTA_DIAS_SEM_VENDA, ALERTA_FREQUENCIA
 STATUS = ("verificar", "comprado", "descontinuado")
 
 
-def listar(base):
-    """Produtos em alerta, do mais tempo sem venda para o menor. "Hoje" é o último dia com venda na base,
-    para um atraso do extrator não jogar todos os produtos na lista."""
+def listar(base, hoje=None):
+    """Produtos em alerta, do mais tempo sem venda para o menor. Quem entra na lista é decidido pelo último dia com
+    venda na base, para um atraso do extrator não jogar todos os produtos nela; os dias sem venda mostrados contam
+    até hoje."""
+    hoje = hoje or date.today()
     fim = base.execute("SELECT MAX(data) FROM vendas_diarias").fetchone()[0]
     if not fim:
         return []
@@ -47,7 +49,7 @@ def listar(base):
         if status == "comprado" and (fim - date.fromisoformat(marcado_em)).days < ALERTA_DIAS_SEM_VENDA:
             continue  # dá uma semana para a mercadoria chegar; se continuar sem vender, volta para a lista
         resultado.append({"codprod": codprod, "produto": produto, "departamento": depto, "ultima_venda": ultima,
-                          "dias_sem_venda": dias, "semanas_com_venda": com_venda, "semanas_total": total,
+                          "dias_sem_venda": (hoje - ultima).days, "semanas_com_venda": com_venda, "semanas_total": total,
                           "status": status})
     return sorted(resultado, key=lambda a: -a["dias_sem_venda"])
 

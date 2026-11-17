@@ -82,7 +82,7 @@ VENDAS[1] = (d(2026, 9, 30), 1, 6.0, 60.0)
 consultas.clear()
 extrator.main()
 datas = [p["ini"] for s, p in consultas if "MOVIMENTACAO" in s]
-assert min(datas).isoformat() == "2026-09-29" and len(datas) == 2, datas  # 3 dias antes da última venda (02/10)
+assert min(datas).isoformat() == "2026-09-29" and len(datas) == len(list(extrator.meses(min(datas), date.today()))), datas  # 3 dias antes da última venda (02/10), um mês por vez até hoje
 assert sql("SELECT COUNT(*), SUM(valor) FROM vendas_diarias") == [(4, 230.0)]  # sem duplicar; 60 no lugar de 50
 assert sql("SELECT familia_id FROM produtos WHERE codprod = 2") == [(1,)]
 assert sql("SELECT pf.codprod, f.nome, f.telefone FROM produto_fornecedores pf JOIN fornecedores f ON f.id = pf.fornecedor_id ORDER BY 1") == [

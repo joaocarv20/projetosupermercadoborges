@@ -1,4 +1,4 @@
-"""Teste das telas com uma base inventada (login, sugestão, alerta e análise).  Rode:  python -m testes.test_app"""
+"""Teste das telas com uma base inventada (login, sugestão, alerta, fornecedores e acompanhamento).  Rode:  python -m testes.test_app"""
 import io
 import math
 import tempfile
@@ -61,13 +61,18 @@ assert 'value="70" aria-label="Quantidade final de ARROZ"' in cliente.get(f"/sug
 cliente.post(f"/sugestao?{periodo}", data={"qtd_1": "75", "qtd_2": "1"})                                  # volta a semana salva
 
 assert "FEIJAO 1KG" in cliente.get("/alertas").text                               # parou há 10 dias
+assert "há <strong>11 dias</strong>" in cliente.get("/alertas").text and "vão só até" not in cliente.get("/alertas").text  # última venda 10 dias antes de ontem; vendas até ontem: sem aviso
 assert cliente.post("/alertas", data={"codprod": "2", "status": "qualquer"}).status_code == 400
+assert '<option value="MERCEARIA BASICA" selected>MERCEARIA BASICA (' in cliente.get("/alertas?departamento=MERCEARIA BASICA").text
+assert "Todos (" in cliente.get("/alertas?departamento=NAO EXISTE").text          # departamento errado: mostra todos
+resposta = cliente.post("/alertas?departamento=X", data={"codprod": "2", "status": "verificar", "produto": "FEIJAO 1KG"})
+assert resposta.location.endswith("/alertas?departamento=X#p2")                    # volta para o mesmo produto
+assert "FEIJAO 1KG: Verificando." in cliente.get("/alertas").text                  # aviso de salvo
 cliente.post("/alertas", data={"codprod": "2", "status": "descontinuado"})
 assert "FEIJAO 1KG" not in cliente.get("/alertas").text
 
-assert cliente.get("/analise").status_code == 200
-assert cliente.get("/analise?inicio=2020-01-01&fim=2020-01-31").status_code == 200  # período sem vendas
 assert cliente.get("/calendario").status_code == 200
+assert cliente.get("/analise").status_code == 404                                  # Análise de vendas saiu: o ERP já tem
 
 assert "Ainda não há semana" in cliente.get("/acompanhamento").text                # a semana salva acima não terminou
 fechada = (motor.proxima_segunda(date.today()) - timedelta(weeks=3)).isoformat()
@@ -96,7 +101,7 @@ assert base.execute("SELECT id, nome FROM fornecedores").fetchall() == [(1, "CAM
 assert "Já existe" in cliente.post("/fornecedores", data={"nome": "Camil"}).text
 assert 'value="11 9999"' in cliente.get("/fornecedores?editar=1").text
 cliente.post("/fornecedores", data={"id": "1", "nome": "CAMIL ALIMENTOS"})
-cliente.post("/fornecedores", data={"nome": "ATACADO SUL"})
+assert "Fornecedor ATACADO SUL salvo." in cliente.post("/fornecedores", data={"nome": "ATACADO SUL"}, follow_redirects=True).text
 pagina = cliente.get("/fornecedores?busca=camíl").text                                         # busca sem acento
 assert "CAMIL ALIMENTOS" in pagina and "ATACADO SUL" not in pagina
 

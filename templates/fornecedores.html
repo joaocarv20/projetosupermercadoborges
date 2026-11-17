@@ -8,8 +8,8 @@
 </header>
 
 <nav class="abas">
-  <a class="botao principal" href="{{ url_for('fornecedores') }}">Cadastro</a>
-  <a class="botao" href="{{ url_for('fornecedores_produtos') }}">Produtos</a>
+  <a class="ativa" href="{{ url_for('fornecedores') }}">Cadastro</a>
+  <a href="{{ url_for('fornecedores_produtos') }}">Produtos</a>
 </nav>
 
 {% if erro %}<div class="faixa-alerta">{{ erro }}</div>{% endif %}

@@ -14,8 +14,11 @@
     {% for t in tipos %}<span class="etiqueta {{ t.cor }}">{{ t.nome }}</span>{% endfor %}
   </p>
   {% endif %}
-  <p class="explicacao">Compara a sugestão com o que realmente vendeu na semana. Acertou = a venda ficou até
-    {{ margem|br }}% acima ou abaixo da sugestão, ou a até {{ unidades|br }} unidade de diferença (produto de pouca saída). Erro +15% = sugeriu 15% a mais do que vendeu.</p>
+  <p class="explicacao">Compara a sugestão com o que realmente vendeu.</p>
+  <details class="ajuda"><summary>Quando a sugestão “acertou”</summary>
+    <p>Acertou = a venda ficou até {{ margem|br }}% acima ou abaixo da sugestão, ou a até {{ unidades|br }} unidade de
+      diferença (produto de pouca saída). Erro +15% = sugeriu 15% a mais do que vendeu.</p>
+  </details>
 </header>
 
 {% if not semana %}
@@ -25,7 +28,7 @@
 
 <form class="filtros nao-imprimir" method="get">
   <label>Período
-    <select name="semana">
+    <select name="semana" onchange="this.form.submit()">
       {% for s, r in semanas %}<option value="{{ s.isoformat() }}" {{ 'selected' if s == semana }}>{{ r }}</option>{% endfor %}
     </select>
   </label>
@@ -71,7 +74,7 @@
 <form class="filtros nao-imprimir" method="get">
   <input type="hidden" name="semana" value="{{ semana.isoformat() }}">
   <label>Departamento
-    <select name="departamento">
+    <select name="departamento" onchange="this.form.submit()">
       {% for d in departamentos %}<option {{ 'selected' if d == departamento }}>{{ d }}</option>{% endfor %}
     </select>
   </label>

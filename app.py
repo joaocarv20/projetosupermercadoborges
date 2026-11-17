@@ -12,10 +12,11 @@ import secrets
 import sqlite3
 import sys
 import unicodedata
+from collections import Counter
 from datetime import date, timedelta
 from functools import lru_cache
 
-from flask import Flask, Response, abort, redirect, render_template, request, session, url_for
+from flask import Flask, Response, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from sistema import acompanhamento as acomp
@@ -70,11 +71,6 @@ def sem_acento(texto):
     return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode().lower()
 
 
-def variacao_pct(atual, anterior):
-    """None quando não há base de comparação (a tela mostra um traço)."""
-    return (atual - anterior) / anterior * 100 if anterior else None
-
-
 @lru_cache(maxsize=16)
 def _guardado(funcao, versao, *args):
     return funcao(abrir(), *args)
@@ -112,10 +108,14 @@ def exigir_login():
 
 @app.context_processor
 def contador_alertas():
-    """Número de alertas mostrado no menu lateral, em todas as telas."""
+    """Número de alertas no menu lateral e aviso de vendas atrasadas, em todas as telas."""
     if "usuario" not in session:
         return {}
-    return {"total_alertas": len(com_cache(lista_alerta.listar))}
+    # A rotina das 3h traz as vendas até ontem; mais velho que isso, ela parou de rodar
+    ultimo = abrir().execute("SELECT MAX(data) FROM vendas_diarias").fetchone()[0]
+    atrasada = ultimo and (date.today() - date.fromisoformat(ultimo)).days > 2
+    return {"total_alertas": len(com_cache(lista_alerta.listar, date.today())),
+            "vendas_ate": date.fromisoformat(ultimo) if atrasada else None}
 
 
 @app.route("/")
@@ -186,6 +186,7 @@ def sugestao():
         with base:
             base.executemany("UPDATE sugestoes SET qtd_final = ? WHERE semana = ? AND familia_id = ?", finais)
             forn.gravar_escolhas(base, semana, escolhas)
+        flash("Quantidades e fornecedores salvos.")
         if request.form.get("enviar", "").isdigit():  # "Mandar pedido": já salvou, agora abre o WhatsApp
             return mandar_pedido(base, inicio, fim, linhas, int(request.form["enviar"])) or redirect(request.full_path)
         return redirect(request.full_path)
@@ -272,11 +273,22 @@ def alertas():
     base = abrir()
     if request.method == "POST":
         try:
-            lista_alerta.marcar(base, int(request.form["codprod"]), request.form["status"])
+            codprod, status = int(request.form["codprod"]), request.form["status"]
+            lista_alerta.marcar(base, codprod, status)
         except (KeyError, ValueError):
             abort(400)
-        return redirect(url_for("alertas"))
-    return render_template("alertas.html", alertas=com_cache(lista_alerta.listar), status=STATUS_ALERTA)
+        flash(f"{request.form.get('produto', 'Produto')}: {STATUS_ALERTA[status]}.")
+        # Volta para o mesmo ponto da lista: o produto marcado ou, se ele saiu da lista, o seguinte
+        alvo = codprod if status == "verificar" else request.form.get("proximo")
+        return redirect(request.full_path + (f"#p{alvo}" if alvo else ""))
+
+    todos = com_cache(lista_alerta.listar, date.today())
+    departamentos = Counter(a["departamento"] or "SEM DEPARTAMENTO" for a in todos)
+    departamento = request.args.get("departamento", "")
+    lista = [a for a in todos if (a["departamento"] or "SEM DEPARTAMENTO") == departamento] \
+        if departamento in departamentos else todos
+    return render_template("alertas.html", alertas=lista, total=len(todos), departamento=departamento,
+                           departamentos=sorted(departamentos.items()), status=STATUS_ALERTA)
 
 
 @app.route("/familias", methods=["GET", "POST"])
@@ -294,6 +306,7 @@ def familias():
                 fam.mover(base, [(int(request.form["codprod"]), request.form["familia"])])
         except (KeyError, ValueError):
             abort(400)
+        flash(f"Produto movido para {request.form['familia'].strip().upper()}.")
         return redirect(request.full_path)
 
     # Um departamento por vez; a busca procura em todos
@@ -327,6 +340,7 @@ def fornecedores():
         with base:
             base.execute("DELETE FROM produto_fornecedores WHERE fornecedor_id = ?", (request.form["excluir"],))
             base.execute("DELETE FROM fornecedores WHERE id = ?", (request.form["excluir"],))
+        flash("Fornecedor excluído.")
         return redirect(url_for("fornecedores"))
 
     if request.method == "POST":  # cadastrar (sem id) ou alterar (com id)
@@ -342,6 +356,7 @@ def fornecedores():
                                  (*dados, atual["id"]))
                 else:
                     base.execute("INSERT INTO fornecedores (nome, contato, telefone, email) VALUES (?, ?, ?, ?)", dados)
+            flash(f"Fornecedor {atual['nome']} salvo.")
             return redirect(url_for("fornecedores"))
         except sqlite3.IntegrityError:  # nome repetido: volta para a tela com o que foi digitado
             erro = f"Já existe um fornecedor chamado {atual['nome']}."
@@ -374,6 +389,7 @@ def fornecedores_produtos():
                                  (int(request.form["codprod"]), int(request.form["remover"])))
                 else:  # acrescenta um fornecedor a todos os produtos da família
                     forn.ligar(base, [int(c) for c in request.form["codprods"].split(",")], request.form["fornecedor"])
+            flash("Fornecedores atualizados.")
             return redirect(request.full_path)
         except KeyError:
             abort(400)
@@ -438,59 +454,6 @@ def acompanhamento():
         departamentos=departamentos, departamento=departamento, busca=busca, margem=ACERTO_MARGEM * 100, unidades=ACERTO_UNIDADES)
 
 
-def vendas_por_departamento(base, inicio, fim):
-    """{departamento: valor vendido} entre as duas datas (inclusive)."""
-    return dict(base.execute(
-        """SELECT COALESCE(d.nome, 'SEM DEPARTAMENTO'), SUM(v.valor) FROM vendas_diarias v
-           JOIN produtos p ON p.codprod = v.codprod LEFT JOIN departamentos d ON d.codepto = p.codepto
-           WHERE v.data BETWEEN ? AND ? GROUP BY 1""", (inicio.isoformat(), fim.isoformat())))
-
-
-@app.route("/analise")
-def analise():
-    base = abrir()
-    # Datas escolhidas (padrão: as 4 semanas até o último dia com venda). Data inválida volta para o padrão.
-    try:
-        inicio = date.fromisoformat(request.args.get("inicio", ""))
-        fim = date.fromisoformat(request.args.get("fim", ""))
-    except ValueError:
-        ultimo = base.execute("SELECT MAX(data) FROM vendas_diarias").fetchone()[0]
-        fim = date.fromisoformat(ultimo) if ultimo else date.today()
-        inicio = fim - timedelta(days=27)
-    if fim < inicio:
-        inicio, fim = fim, inicio
-
-    # Período anterior com o mesmo número de dias, e o mesmo período 52 semanas antes
-    # (52 semanas = mesmo dia da semana, o que é mais justo para comparar mercado)
-    dias = (fim - inicio).days + 1
-    anterior = (inicio - timedelta(days=dias), inicio - timedelta(days=1))
-    ano_passado = (inicio - timedelta(weeks=52), fim - timedelta(weeks=52))
-
-    atual = vendas_por_departamento(base, inicio, fim)
-    ant = vendas_por_departamento(base, *anterior)
-    passado = vendas_por_departamento(base, *ano_passado)
-    total = {"atual": sum(atual.values()), "anterior": sum(ant.values()), "ano_passado": sum(passado.values())}
-    linhas = [{"departamento": d, "atual": v, "anterior": ant.get(d, 0), "ano_passado": passado.get(d, 0),
-               "var": variacao_pct(v, ant.get(d, 0)), "var_ano": variacao_pct(v, passado.get(d, 0)),
-               "participacao": v / (total["atual"] or 1) * 100}
-              for d, v in sorted(atual.items(), key=lambda x: -x[1])]
-
-    # Semanas inteiras (segunda a domingo) que terminam dentro do período, para o gráfico de barras
-    semanas, segunda = [], inicio - timedelta(days=inicio.weekday())
-    while segunda + timedelta(days=6) <= fim:
-        valor = base.execute("SELECT COALESCE(SUM(valor), 0) FROM vendas_diarias WHERE data BETWEEN ? AND ?",
-                             (segunda.isoformat(), (segunda + timedelta(days=6)).isoformat())).fetchone()[0]
-        semanas.append({"semana": f"{segunda:%d/%m} a {segunda + timedelta(days=6):%d/%m}",
-                        "tipo": tipo_semana(segunda), "valor": valor})
-        segunda += timedelta(weeks=1)
-
-    return render_template(
-        "analise.html", inicio=inicio, fim=fim, anterior=anterior, ano_passado=ano_passado,
-        total=total, var_anterior=variacao_pct(total["atual"], total["anterior"]),
-        var_ano=variacao_pct(total["atual"], total["ano_passado"]), linhas=linhas,
-        semanas_mes=semanas, maior_semana=max((s["valor"] for s in semanas), default=0) or 1, tipos=TIPOS_SEMANA)
-
-
 # ---------------------------------------------------------------------------
 # Calendário de dias quentes (Fase 2)
 # ---------------------------------------------------------------------------
@@ -498,9 +461,9 @@ def analise():
 @app.route("/calendario")
 def calendario():
     try:
-        mes = int(request.args.get("mes", 10))
+        mes = int(request.args.get("mes", date.today().month))
     except ValueError:
-        mes = 10
+        mes = date.today().month
     mes = min(max(mes, 1), 12)  # só 2026 por enquanto
 
     semanas = []

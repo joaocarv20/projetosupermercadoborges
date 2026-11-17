@@ -33,11 +33,13 @@ alertas.marcar(base, 6, "descontinuado", FIM - timedelta(days=20))  # marcado an
 alertas.marcar(base, 7, "comprado", FIM - timedelta(days=2))        # comprado há 2 dias: espera chegar
 alertas.marcar(base, 8, "comprado", FIM - timedelta(days=8))        # comprado há 8 dias e nada: volta
 
-lista = {a["codprod"]: a for a in alertas.listar(base)}
+lista = {a["codprod"]: a for a in alertas.listar(base, FIM)}
 assert sorted(lista) == [1, 6, 8, 9], sorted(lista)
 assert lista[1]["dias_sem_venda"] == 10 and lista[1]["semanas_total"] == 52 and lista[1]["departamento"] == "LIMPEZA"
 assert lista[6]["status"] is None and lista[8]["status"] == "comprado"
 assert (lista[9]["semanas_com_venda"], lista[9]["semanas_total"]) == (5, 6)
+# Base parada há 20 dias (extrator sem rodar): a lista é a mesma, mas os dias contam até hoje
+assert {a["codprod"]: a["dias_sem_venda"] for a in alertas.listar(base, FIM + timedelta(days=20))}[1] == 30
 
 try:
     alertas.marcar(base, 1, "qualquer")
