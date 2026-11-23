@@ -1,6 +1,7 @@
 """Teste das telas com uma base inventada (login, sugestão, alerta, fornecedores e acompanhamento).  Rode:  python -m testes.test_app"""
 import io
 import math
+import re
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
@@ -36,6 +37,15 @@ semana = motor.proxima_segunda(date.today()).isoformat()
 periodo = f"inicio={semana}&fim={date.fromisoformat(semana) + timedelta(days=6)}"
 pagina = cliente.get(f"/sugestao?{periodo}").text
 assert "ARROZ" in pagina and 'value="70" aria-label="Quantidade final de ARROZ"' in pagina                # 10 por dia x 7
+# Padrão é escolher a semana na lista (com o tipo), só as do mês; a busca avançada (de um dia a outro) fica fechada
+assert f'value="{semana}" data-fim="{date.fromisoformat(semana) + timedelta(days=6)}" selected' in pagina
+segundas = [date.fromisoformat(v) for v in re.findall(r'value="([\d-]+)" data-fim="[\d-]+" (?:selected)?>\s+\d\d/\d\d a', pagina)]
+assert 4 <= len(segundas) <= 5 and all(s.weekday() == 0 and s.month == date.fromisoformat(semana).month for s in segundas)
+assert 'value="semana" checked' in pagina and "Escolha a semana" not in pagina
+# Mês: este e os 2 seguintes; cada um abre numa segunda do próprio mês, e o do período vem marcado
+meses = [(date.fromisoformat(v), m) for v, m in re.findall(r'value="([\d-]+)" data-fim="[\d-]+" (selected)?>[A-Z][a-zç]+/\d{4}<', pagina)]
+assert len(meses) >= 3 and all(s.weekday() == 0 for s, _ in meses)
+assert [s.month for s, m in meses if m] == [date.fromisoformat(semana).month]
 
 cliente.post(f"/sugestao?{periodo}", data={"qtd_1": "75", "qtd_2": "abc", "qtd_99": "5"})
 assert base.execute("SELECT familia_id, qtd_sugerida, qtd_final FROM sugestoes ORDER BY 1").fetchall() == [
@@ -53,6 +63,7 @@ tres = f"inicio={semana}&fim={date.fromisoformat(semana) + timedelta(days=2)}"
 pagina = cliente.get(f"/sugestao?{tres}").text
 tres_dias = math.ceil(round(70 * sum(motor.peso_dos_dias(base)[:3]), 6))      # 70 na semana x peso de seg, ter e qua
 assert f'value="{tres_dias}" aria-label="Quantidade final de ARROZ"' in pagina and "(3 dias)" in pagina
+assert 'value="dias" checked' in pagina and "Escolha a semana</option>" in pagina  # fora da lista: abre na busca avançada
 assert "(3 dias)" in cliente.get(f"/sugestao?inicio={date.fromisoformat(semana) + timedelta(days=2)}&fim={semana}").text
 assert "O período vai até 31 dias" in cliente.get(f"/sugestao?inicio={semana}&fim={date.fromisoformat(semana) + timedelta(days=60)}").text
 cliente.post(f"/sugestao?{tres}", data={"qtd_1": "33"})

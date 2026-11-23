@@ -141,6 +141,18 @@ input, select, button { font: inherit; }
 .filtros label.marcar { flex-direction: row; align-items: center; gap: .5rem; min-height: 44px;
   font-size: .95rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--tinta); }
 .filtros-linha { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .9rem 1.1rem; }
+/* Chave do período (Sugestão): "Por semana" ou "Busca avançada"; só os campos do modo marcado aparecem */
+.modo-periodo { display: flex; flex-direction: column; gap: .3rem; }
+.titulo-campo { font: 600 .74rem/1.2 var(--fonte-texto); letter-spacing: .06em; text-transform: uppercase; color: var(--tinta-suave); }
+.chave { display: flex; border: 1px solid var(--placa); border-radius: 8px; overflow: hidden; }
+.filtros .chave label { flex-direction: row; align-items: center; min-height: 44px; padding: 0 1rem; cursor: pointer;
+  font: 600 .95rem var(--fonte-texto); letter-spacing: 0; text-transform: none; color: var(--placa); background: #fff; }
+.chave label + label { border-left: 1px solid var(--placa); }
+.chave input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.filtros .chave label:has(:checked) { background: var(--placa); color: #fff; }
+.chave label:has(:focus-visible) { outline: 2px solid var(--etiqueta); outline-offset: -2px; }
+.filtros:has([name="modo"][value="dias"]:checked) .por-semana,
+.filtros:has([name="modo"][value="semana"]:checked) .por-dias { display: none; }
 
 .botao {
   display: inline-flex; align-items: center; justify-content: center; gap: .4rem;

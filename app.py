@@ -82,6 +82,12 @@ def com_cache(funcao, *args):
     return _guardado(funcao, base_local.ARQUIVO_BASE.stat().st_mtime_ns, *args)
 
 
+def primeira_segunda(dia):
+    """1ª segunda-feira do mês de `dia` (a semana é do mês em que cai a sua segunda)."""
+    dia1 = dia.replace(day=1)
+    return dia1 + timedelta(days=(7 - dia1.weekday()) % 7)
+
+
 def rotulo_periodo(inicio, fim):
     return f"{inicio:%d/%m} a {fim:%d/%m/%Y}"
 
@@ -237,8 +243,23 @@ def sugestao():
 
     dias = [inicio + timedelta(days=i) for i in range((fim - inicio).days + 1)]
     obs = ", ".join(f"{feriado(d)} em {d:%d/%m}" for d in dias if feriado(d))
+    # Escolha padrão: as semanas do mês do período (a semana é do mês da sua segunda), cada uma com o seu tipo.
+    # De um dia a outro fica na busca avançada.
+    primeira = primeira_segunda(inicio)
+    segundas = [s for s in (primeira + timedelta(weeks=i) for i in range(5)) if s.month == inicio.month]
+    semanas = [(s, s + timedelta(days=6), TIPOS_SEMANA[tipo_semana(s)]["nome"]) for s in segundas]
+    avancada = not any(s == inicio and f == fim for s, f, _ in semanas)
+    # Mês: este e os 2 seguintes (e o do período, se for outro). Trocar o mês abre a 1ª semana dele que não passou.
+    hoje = date.today()
+    esta_semana = hoje - timedelta(days=hoje.weekday())
+    meses = []
+    for s in sorted({primeira_segunda(date(hoje.year + (hoje.month + i - 1) // 12, (hoje.month + i - 1) % 12 + 1, 1))
+                     for i in range(3)} | {primeira}):
+        abre = max(s, esta_semana) if s.month == esta_semana.month and s.year == esta_semana.year else s
+        meses.append((abre, abre + timedelta(days=6), f"{MESES[s.month - 1]}/{s.year}", s == primeira))
     return render_template(
         "sugestao.html", inicio=inicio, fim=fim, dias=len(dias), rotulo=rotulo_periodo(inicio, fim),
+        semanas=semanas, meses=meses, avancada=avancada, esta_semana=esta_semana,
         tipos=tipos_do_periodo(inicio, fim), obs=obs, aviso=aviso, familias=familias, departamentos=departamentos, departamento=departamento, busca=busca,
         fornecedores=lista_fornecedores, fornecedor=fornecedor, todas=todas, escondidas=escondidas,
         minima=SUGESTAO_MINIMA,

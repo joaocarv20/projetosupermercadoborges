@@ -26,10 +26,39 @@
   </details>
 </header>
 
-<!-- Filtros: enviados pela URL (GET), sem JavaScript -->
+<!-- Filtros: enviados pela URL (GET). A semana escolhida preenche o De/Até da busca avançada e aplica -->
 <form class="filtros nao-imprimir" method="get">
-  <label>De <input type="date" name="inicio" value="{{ inicio.isoformat() }}" required></label>
-  <label>Até <input type="date" name="fim" value="{{ fim.isoformat() }}" required></label>
+  {% set aplicar = "const o = this.selectedOptions[0]; this.form.inicio.value = o.value; this.form.fim.value = o.dataset.fim; this.form.submit()" %}
+  <!-- Chave: por semana (padrão) ou busca avançada, de um dia a outro. O CSS mostra só os campos do modo marcado -->
+  <div class="modo-periodo" role="radiogroup" aria-label="Escolher o período">
+    <span class="titulo-campo">Período</span>
+    <div class="chave">
+      <label><input type="radio" name="modo" value="semana" {{ 'checked' if not avancada }}> Por semana</label>
+      <label><input type="radio" name="modo" value="dias" {{ 'checked' if avancada }}> Busca avançada</label>
+    </div>
+  </div>
+  <div class="filtros-linha por-semana">
+    <label>Mês
+      <select onchange="{{ aplicar }}">
+        {% for s, f, nome, atual in meses %}
+          <option value="{{ s.isoformat() }}" data-fim="{{ f.isoformat() }}" {{ 'selected' if atual }}>{{ nome }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Semana
+      <select onchange="{{ aplicar }}">
+        {% if avancada %}<option selected disabled>Escolha a semana</option>{% endif %}
+        {% for s, f, nome in semanas %}
+          <option value="{{ s.isoformat() }}" data-fim="{{ f.isoformat() }}" {{ 'selected' if s == inicio and f == fim }}>
+            {{ s.strftime('%d/%m') }} a {{ f.strftime('%d/%m') }} · {{ nome }}{{ ' (esta semana)' if s == esta_semana }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="filtros-linha por-dias">
+    <label>De <input type="date" name="inicio" value="{{ inicio.isoformat() }}" required></label>
+    <label>Até <input type="date" name="fim" value="{{ fim.isoformat() }}" required></label>
+  </div>
   <label>Departamento
     <select name="departamento" onchange="this.form.submit()">
       {% for d in departamentos %}
