@@ -133,6 +133,12 @@ Se a pasta `logs` não existe, nem o servidor nem a rotina da noite rodaram nenh
 
 - `logs\rotina.log`: a última linha de cada noite deve ser `Backup: ...`, com o `Pronto!` do extrator antes.
 - `logs\servidor.log`: erros do servidor.
+- **Aviso "As vendas no sistema vão só até..." nas telas:** a rotina da noite parou. Para recuperar na hora, no cmd da
+  pasta: `.venv\Scripts\python rotina_noturna.py` (busca tudo desde a última venda da base e termina em `Pronto!` e
+  `Backup: ...`). Depois veja no fim do `logs\rotina.log` por que parou: noites sem registro = a tarefa não rodou
+  (computador desligado às 3h? marque, no Agendador, "Executar a tarefa o mais cedo possível após perder uma
+  inicialização agendada"); `ORA-...` = problema no Oracle (senha, rede).
+  Aconteceu de 01/11 a 24/11/2026: recuperado à mão em 24/11; causa ainda não conferida no log.
 
 ## 7. Atualizar o sistema
 
@@ -150,6 +156,9 @@ Se aparecer `ERRO: O sistema não pode encontrar o arquivo especificado.` antes 
 "Borges - servidor" não existe: o sistema foi desligado e não voltou. Ligue com o `iniciar_servidor.bat` e crie as
 tarefas (passo 4). Uns 1 a 2 minutos são normais (o `pip install` confere os pacotes).
 
+- **Pediu login do GitHub?** Desde 24/11/2026 o repositório é público e o `git pull` não pede login. Se voltar a
+  ser privado, use um token só de leitura deste repositório (Contents: Read-only), nunca a conta pessoal pelo navegador.
+  Enquanto espera o login, a janela do `atualizar.bat` fica preta e parada (a janela de login pode abrir atrás dela).
 - **Nunca edite o código direto neste computador:** o `git pull` falha se houver arquivo alterado aqui.
 - **Cópia antiga, sem o `atualizar.bat`:** rode `git pull` uma vez no cmd da pasta; o arquivo aparece e serve
   daí em diante.

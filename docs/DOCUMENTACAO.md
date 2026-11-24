@@ -230,16 +230,18 @@ Em ordem de prioridade.
 | --- | --- | --- | --- |
 | 1 | Conferir com o Paulo os fornecedores de cada produto | Vem o histórico inteiro de entregas; tirar quem não entrega mais | Pequeno (é uso da tela) |
 | 2 | Liberar 2027 na tela do calendário | A tela só mostra 2026; em dezembro as compras já serão para janeiro (o cálculo já funciona em qualquer ano) | Pequeno |
-| 3 | Revisar as famílias com o Paulo | Sandálias não têm tamanho na descrição (SAND HAV juntou 231 produtos); alguns tipos, como FEIJAO CARIOCA, ficaram como se fossem marca | Médio |
-| 4 | Descontar o estoque da sugestão | Hoje o Paulo desconta o estoque de cabeça | Médio, se o estoque do Cefas for confiável |
-| 5 | Converter a sugestão em caixas | O pedido é feito em caixas; o Cefas tem a embalagem master | Pequeno |
-| 6 | Marcar semana atípica e promoção pela tela | A base já tem a marca de dia atípico, mas sem tela; promoção infla a mediana das semanas seguintes | Pequeno |
-| 7 | Tratar falta de produto na prateleira | Semana sem venda por ruptura puxa a sugestão para baixo; cruzar com a lista de alerta | Médio |
-| 8 | Evolução do acerto semana a semana | Depois de algumas semanas de uso, mostra se os ajustes estão melhorando a sugestão | Pequeno |
-| 9 | Produtos sazonais (Páscoa, Natal, festa junina) | A mediana de 6 semanas não enxerga o pico do ano; usar a mesma semana do ano passado | Médio |
-| 10 | Backup semanal fora da máquina automático | Hoje depende de alguém copiar | Pequeno |
-| 11 | Guardar o código do Cefas no fornecedor | Se o Paulo renomear um fornecedor do Cefas, o próximo produto novo dele recria o nome antigo | Pequeno |
-| 12 | IA para explicar variações e responder perguntas sobre as vendas (fase 3) | Previsto na arquitetura; sempre sobre os números do motor | Grande |
+| 3 | Calendário de dezembro: sem "fraca" no fim do ano e com o 13º salário | A regra "do dia 23 em diante é fraca" marca 23 a 30/12 como dias fracos, e são dos que mais vendem (a semana em si já conta como feriado no cálculo); a 1ª parcela do 13º (até 30/11) e a 2ª (até 20/12) não entram como salário. Visto com o Paulo em 24/11 | Pequeno |
+| 4 | Revisar as famílias com o Paulo | Sandálias não têm tamanho na descrição (SAND HAV juntou 231 produtos); alguns tipos, como FEIJAO CARIOCA, ficaram como se fossem marca | Médio |
+| 5 | Descontar o estoque da sugestão | Hoje o Paulo desconta o estoque de cabeça | Médio, se o estoque do Cefas for confiável |
+| 6 | Converter a sugestão em caixas | O pedido é feito em caixas; o Cefas tem a embalagem master | Pequeno |
+| 7 | Marcar semana atípica e promoção pela tela | A base já tem a marca de dia atípico, mas sem tela; promoção infla a mediana das semanas seguintes | Pequeno |
+| 8 | Tratar falta de produto na prateleira | Semana sem venda por ruptura puxa a sugestão para baixo; cruzar com a lista de alerta | Médio |
+| 9 | Evolução do acerto semana a semana | Depois de algumas semanas de uso, mostra se os ajustes estão melhorando a sugestão | Pequeno |
+| 10 | Produtos sazonais (Páscoa, Natal, festa junina) | A mediana de 6 semanas não enxerga o pico do ano; usar a mesma semana do ano passado. Teste no Natal de 2025: o total ficou 9% acima, mas cerveja, leite condensado, creme de leite e carvão tiveram sugestão de 20% a 60% do que vendeu. Junto: a força de cada feriado (de 2024 a 2026, Corpus Christi, Carnaval e Ano Novo +15 a 30% na semana; Proclamação e Sant'Ana perto de 0%), hoje todos tratados iguais | Médio |
+| 11 | Backup semanal fora da máquina automático | Hoje depende de alguém copiar | Pequeno |
+| 12 | Guardar o código do Cefas no fornecedor | Se o Paulo renomear um fornecedor do Cefas, o próximo produto novo dele recria o nome antigo | Pequeno |
+| 13 | Filtro de dias sem venda na Lista de alerta, para promoção (pedido do Paulo, 24/11) | Escolher, por exemplo, "sem venda há 30 dias ou mais" e ver só esses, para fazer promoção e girar o estoque parado. Hoje a lista só pega quem vendia em 70% das semanas: produto de pouca saída parado não aparece, então talvez precise de uma lista à parte de "encalhados" | Pequeno a médio |
+| 14 | IA para explicar variações e responder perguntas sobre as vendas (fase 3) | Previsto na arquitetura; sempre sobre os números do motor | Grande |
 
 ## Perguntas para o dono do mercado
 
@@ -280,6 +282,8 @@ Mais recente primeiro. Cada mudança no sistema ganha uma linha aqui.
 
 | Data | Mudança | Detalhe |
 | --- | --- | --- |
+| 24/11 | Vendas recuperadas no mercado | A rotina da noite não trazia vendas desde 01/11 (aviso no topo das telas); rodada à mão, a base voltou a ir até ontem (1.075 dias, R$ 21,8 milhões). Causa ainda não conferida no `logs\rotina.log`; passo a passo no INSTALACAO.md, seção 6 |
+| 24/11 | Mercado atualizado; repositório público | O `atualizar.bat` pedia login do GitHub (repositório privado) e ficava com a tela preta; o repositório passou a público e o mercado recebeu a escolha por mês e semana. Ficam públicos o mapa do banco do Cefas e os números da documentação (nenhuma senha: o `.env` nunca foi ao Git) |
 | 23/11 | Sugestão: semana na lista e busca avançada (branch `busca-avancada`) | O padrão é escolher a semana numa lista com o tipo de cada uma, só as semanas do mês do período (a semana é do mês da sua segunda-feira: 30/11 a 06/12 é de novembro); ao lado, o mês (este e os 2 seguintes), que abre na 1ª semana dele que ainda não passou; uma chave "Por semana / Busca avançada" troca para o De/Até de qualquer dia a qualquer dia, e já vem em "Busca avançada" quando o período não é uma semana da lista |
 | 17/11 | Dias sem venda contados até hoje | A Lista de alerta contava até o último dia com venda na base, e com a base parada mostrava menos dias que o real; agora conta até hoje (quem entra na lista continua pelo último dia com venda). Aviso no topo de todas as telas quando as vendas têm mais de 2 dias de atraso (rotina da noite parada) |
 | 16/11 | Sai a tela Análise de vendas | Estava desatualizada e o ERP do Paulo já tem a análise de vendas completa; saem a rota `/analise`, o `analise.html`, o item do menu e o CSS do gráfico |
