@@ -218,6 +218,7 @@ summary:hover { color: var(--placa); }
   background: #fdf0e3; border-left: 4px solid var(--laranja);
 }
 .forn-sabor { margin-top: .2rem; font-size: .85rem; color: var(--tinta-suave); }
+.cod-barra { font-variant-numeric: tabular-nums; letter-spacing: .02em; margin-right: .6rem; }
 select.fornecedor { padding: .3rem .4rem; border: 1px solid var(--linha-forte); border-radius: 6px; background: #fff; width: 12rem; max-width: 100%; }
 
 /* Barra de ações da sugestão: fica presa no pé da tela enquanto a lista rola */

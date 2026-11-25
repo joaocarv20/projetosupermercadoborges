@@ -206,6 +206,7 @@ def sugestao():
         departamento = departamentos[0] if departamentos else ""
     busca = request.args.get("busca", "").strip()
     escolha, ligados = forn.escolhidos(base, semana)
+    barras = dict(base.execute("SELECT codprod, codbarra FROM produtos WHERE codbarra"))  # código de barras, ao lado do fornecedor
     lista_fornecedores = base.execute("SELECT id, nome, telefone FROM fornecedores ORDER BY nome").fetchall()
     try:
         fornecedor = int(request.args.get("fornecedor", ""))
@@ -213,6 +214,7 @@ def sugestao():
         fornecedor = None
 
     todas = bool(request.args.get("todas"))
+    ordem = "nome" if request.args.get("ordem") == "nome" else "vendidos"  # pedido do Paulo: mais vendidos primeiro
     familias, escondidas = [], 0
     for l in linhas:
         # A busca e o fornecedor procuram em todos os departamentos (o pedido de um fornecedor passa por vários)
@@ -232,7 +234,8 @@ def sugestao():
         comprar = motor.dividir(final, [p["qtd"] for p in l["produtos"]], l["unidade"])
         familias.append({
             **l, "un": "kg" if kg else "un", "casas": 1 if kg else 0,
-            "produtos": [{**p, "comprar": c, "fornecedores": ligados.get(p["codprod"], []), "escolhido": escolha.get(p["codprod"])}
+            "produtos": [{**p, "comprar": c, "fornecedores": ligados.get(p["codprod"], []), "escolhido": escolha.get(p["codprod"]),
+                          "barra": barras.get(p["codprod"])}
                          for p, c in zip(l["produtos"], comprar)],
             # Fornecedores escolhidos na família (mostrado na linha da família quando ela tem vários sabores)
             "de": sorted({n for p in l["produtos"] for fid, n in ligados.get(p["codprod"], []) if fid == escolha.get(p["codprod"])}),
@@ -240,6 +243,9 @@ def sugestao():
             # Se um produto tem 80% ou mais da venda da família, provavelmente o caixa registra tudo nele
             "concentrado": len(l["produtos"]) > 1 and max(p["pct"] for p in l["produtos"]) >= 80,
         })
+
+    if ordem == "vendidos":  # pela venda típica (mediana); empate fica em ordem alfabética
+        familias.sort(key=lambda f: -f["mediana"])
 
     dias = [inicio + timedelta(days=i) for i in range((fim - inicio).days + 1)]
     obs = ", ".join(f"{feriado(d)} em {d:%d/%m}" for d in dias if feriado(d))
@@ -261,7 +267,7 @@ def sugestao():
         "sugestao.html", inicio=inicio, fim=fim, dias=len(dias), rotulo=rotulo_periodo(inicio, fim),
         semanas=semanas, meses=meses, avancada=avancada, esta_semana=esta_semana,
         tipos=tipos_do_periodo(inicio, fim), obs=obs, aviso=aviso, familias=familias, departamentos=departamentos, departamento=departamento, busca=busca,
-        fornecedores=lista_fornecedores, fornecedor=fornecedor, todas=todas, escondidas=escondidas,
+        fornecedores=lista_fornecedores, fornecedor=fornecedor, todas=todas, ordem=ordem, escondidas=escondidas,
         minima=SUGESTAO_MINIMA,
         escolhido=next((f for f in lista_fornecedores if f[0] == fornecedor), None))
 

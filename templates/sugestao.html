@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block titulo %}Sugestão de compra{% endblock %}
 {% block conteudo %}
-{# Fornecedor do produto: lista quando tem mais de um, nome quando tem um só, nada quando não tem #}
+{# Código de barras e fornecedor do produto: lista quando tem mais de um fornecedor, nome quando tem um só, nada quando não tem #}
 {% macro escolher(p) -%}
+  {% if p.barra %}<span class="cod-barra" title="Código de barras">{{ p.barra }}</span>{% endif %}
   {% if p.fornecedores|length > 1 %}
     <select class="fornecedor" name="forn_{{ p.codprod }}" aria-label="Fornecedor de {{ p.descricao }}">
       {% for fid, nome in p.fornecedores %}<option value="{{ fid }}" {{ 'selected' if fid == p.escolhido }}>{{ nome }}</option>{% endfor %}
@@ -73,6 +74,12 @@
     <select name="fornecedor">
       <option value="">Todos</option>
       {% for fid, nome, _ in fornecedores %}<option value="{{ fid }}" {{ 'selected' if fid == fornecedor }}>{{ nome }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Ordem
+    <select name="ordem" onchange="this.form.submit()">
+      <option value="vendidos">Mais vendidos primeiro</option>
+      <option value="nome" {{ 'selected' if ordem == 'nome' }}>Nome (A a Z)</option>
     </select>
   </label>
   <label class="marcar"><input type="checkbox" name="todas" value="1" {{ 'checked' if todas }}> Mostrar também os de pouca saída</label>

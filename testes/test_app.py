@@ -22,6 +22,7 @@ base.execute("INSERT INTO departamentos VALUES ('102', 'MERCEARIA BASICA', 1)")
 base.executemany("INSERT INTO familias (id, nome) VALUES (?, ?)", [(1, "ARROZ"), (2, "FEIJAO")])
 base.executemany("INSERT INTO produtos (codprod, descricao, unidade, codepto, familia_id) VALUES (?, ?, 'UN', '102', ?)",
                  [(1, "ARROZ 5KG", 1), (2, "FEIJAO 1KG", 2)])
+base.execute("UPDATE produtos SET codbarra = 7891234567895 WHERE codprod = 1")
 ontem = date.today() - timedelta(days=1)
 base.executemany("INSERT INTO vendas_diarias VALUES (?, ?, 10, 50)",
                  [((ontem - timedelta(days=d)).isoformat(), c) for d in range(400) for c in (1, 2) if c == 1 or d >= 10])
@@ -37,6 +38,7 @@ semana = motor.proxima_segunda(date.today()).isoformat()
 periodo = f"inicio={semana}&fim={date.fromisoformat(semana) + timedelta(days=6)}"
 pagina = cliente.get(f"/sugestao?{periodo}").text
 assert "ARROZ" in pagina and 'value="70" aria-label="Quantidade final de ARROZ"' in pagina                # 10 por dia x 7
+assert '<span class="cod-barra" title="Código de barras">7891234567895</span>' in pagina and pagina.count('class="cod-barra"') == 1
 # Padrão é escolher a semana na lista (com o tipo), só as do mês; a busca avançada (de um dia a outro) fica fechada
 assert f'value="{semana}" data-fim="{date.fromisoformat(semana) + timedelta(days=6)}" selected' in pagina
 segundas = [date.fromisoformat(v) for v in re.findall(r'value="([\d-]+)" data-fim="[\d-]+" (?:selected)?>\s+\d\d/\d\d a', pagina)]
@@ -165,6 +167,16 @@ assert "Total%3A%201%20itens" in link
 assert "/sugestao" in cliente.post(f"/sugestao?{periodo}&fornecedor=4", data={"enviar": "4"}).location  # nada a pedir
 assert forn_link("0xx11 3333-4444") == "https://wa.me/551133334444?text="                       # fixo com 0 na frente
 assert forn_link("") == "https://wa.me/?text="                                                  # sem telefone
+
+# Ordem: mais vendidos primeiro (padrão, pedido do Paulo); "nome" volta para A a Z
+base.execute("INSERT INTO familias (id, nome) VALUES (3, 'MACARRAO')")
+base.execute("INSERT INTO produtos (codprod, descricao, unidade, codepto, familia_id) VALUES (3, 'MACARRAO 500G', 'UN', '102', 3)")
+base.executemany("INSERT INTO vendas_diarias VALUES (?, 3, 30, 90)", [((ontem - timedelta(days=d)).isoformat(),) for d in range(400)])
+base.commit()
+pagina = cliente.get(f"/sugestao?{periodo}").text
+assert pagina.index("MACARRAO 500G") < pagina.index("ARROZ 5KG") and '<option value="vendidos">' in pagina
+pagina = cliente.get(f"/sugestao?{periodo}&ordem=nome").text
+assert pagina.index("ARROZ 5KG") < pagina.index("MACARRAO 500G") and '<option value="nome" selected>' in pagina
 
 cliente.get("/sair")
 assert cliente.get("/alertas").status_code == 302
